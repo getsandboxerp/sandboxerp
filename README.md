@@ -132,6 +132,31 @@ sandboxerp/
 
 Never push directly to `main`.
 
+### Contributing code step by step
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/getsandboxerp/sandboxerp.git
+cd sandboxerp
+
+# 2. Create your feature branch off dev
+git checkout dev
+git checkout -b feat/your-feature
+
+# 3. Install in editable mode with dev dependencies
+pip install -e ".[dev]"
+
+# 4. Make your changes, then verify
+pytest
+
+# 5. Commit and push
+git add .
+git commit -m "feat: describe your change"
+git push origin feat/your-feature
+```
+
+Then open a PR from `feat/your-feature` → `dev` on GitHub.
+
 ---
 
 ## Contributing
