@@ -159,9 +159,73 @@ Then open a PR from `feat/your-feature` → `dev` on GitHub.
 
 ---
 
-## Contributing
+## How to contribute
 
 Contributions are welcome. Please open an issue before submitting a PR so we can discuss the approach first.
+
+### Branching model
+
+| Branch | Purpose |
+|---|---|
+| `main` | Stable. Every commit here is a versioned release. |
+| `feat/xxx` | One branch per feature, fix, or improvement. |
+
+**Flow:** `feat/xxx` → PR → `main`
+
+`main` is protected — direct pushes are blocked. All changes go through a pull request.
+
+### Branch naming
+
+```
+feat/docker-engine
+fix/rut-validation
+docs/contributing-guide
+test/behaviour-engine
+refactor/cli-structure
+chore/update-dependencies
+```
+
+### Step by step
+
+```bash
+# 1. Clone the repo
+git clone git@github.com:getsandboxerp/sandboxerp.git
+cd sandboxerp
+
+# 2. Create a virtual environment and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# 3. Create your branch from main
+git checkout main
+git checkout -b feat/your-feature
+
+# 4. Make your changes, then run the tests
+pytest
+
+# 5. Commit using Conventional Commits
+git add .
+git commit -m "feat: describe your change"
+
+# 6. Push and open a PR to main
+git push origin feat/your-feature
+```
+
+Then open a pull request from `feat/your-feature` → `main` on GitHub.
+
+### Commit conventions
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Prefix | When to use |
+|---|---|
+| `feat:` | New functionality |
+| `fix:` | Bug fix |
+| `docs:` | Documentation only |
+| `test:` | Adding or fixing tests |
+| `refactor:` | Code refactoring without functional change |
+| `chore:` | Maintenance tasks (deps, config) |
 
 By contributing you agree your code will be released under the MIT license.
 
