@@ -12,6 +12,8 @@ Examples::
     sandbox destroy            # prompts for confirmation
     sandbox destroy --force    # skips confirmation (CI / scripting)
 
+
+:author: Hector Colina / Team360 <https://team360.cl>
 """
 
 import typer

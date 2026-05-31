@@ -11,6 +11,8 @@ Example::
 
     sandbox start
 
+
+:author: Hector Colina / Team360 <https://team360.cl>
 """
 
 import typer
