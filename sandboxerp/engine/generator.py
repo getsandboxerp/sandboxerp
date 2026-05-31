@@ -1,9 +1,19 @@
 """
+sandboxerp.engine.generator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Environment generator for SandboxERP.
 
-Orchestrates the full generation pipeline: validates inputs,
-ensures Docker images are available, writes the docker-compose file,
-and brings up the Odoo + PostgreSQL environment.
+Orchestrates the full generation pipeline:
+
+1. Validate flags and resolve pack combinations.
+2. Connect to Docker daemon.
+3. Optionally destroy an existing environment.
+4. Pull Odoo + Postgres Docker images (if not cached).
+5. Write ``docker-compose.yml`` and bring up containers.
+6. Wait for Odoo HTTP port to respond.
+7. Hand off to :mod:`sandboxerp.engine.installer` for module installation
+   and synthetic data generation.
 
 :author: Hector Colina / Team360 <https://team360.cl>
 """
@@ -23,6 +33,7 @@ from sandboxerp.engine.docker import (
     wait_for_odoo,
     write_compose,
 )
+from sandboxerp.engine.installer import install
 
 console = Console()
 
@@ -86,7 +97,8 @@ def generate_environment(
     4. Pull required images.
     5. Write ``docker-compose.yml``.
     6. Start containers via docker-compose.
-    7. Wait for Odoo to become available.
+    7. Wait for Odoo to become available on its HTTP port.
+    8. Install modules and generate synthetic data via the installer.
 
     :param country: ISO country code (e.g. ``cl``).
     :param industry: Industry pack (e.g. ``retail``).
@@ -135,7 +147,6 @@ def generate_environment(
 
     console.print("[bold]→[/bold] Starting containers...")
     import subprocess
-
     subprocess.run(
         ["docker", "compose", "-f", str(compose_path), "up", "-d"],
         check=True,
@@ -144,14 +155,25 @@ def generate_environment(
     console.print("[bold]→[/bold] Waiting for Odoo to be ready...")
     ready = wait_for_odoo(bind=bind, port=port)
 
-    if ready:
-        host_display = "localhost" if bind in ("127.0.0.1", "0.0.0.0") else bind
+    if not ready:
         console.print(
-            f"\n[bold green]✓ Environment ready![/bold green]  "
-            f"http://{host_display}:{port}"
+            "[yellow]⚠[/yellow]  Odoo hasn't responded yet — "
+            "proceeding anyway. Check logs if installation fails."
         )
-    else:
-        console.print(
-            "[yellow]⚠[/yellow]  Containers are up but Odoo hasn't responded yet. "
-            "Check logs with: docker compose logs odoo"
-        )
+
+    # ── Installer phase ──────────────────────────────────────────────
+    install(
+        country=country,
+        industry=industry,
+        profile=profile,
+        seed=seed,
+        host="127.0.0.1" if bind == "0.0.0.0" else bind,
+        port=port,
+    )
+
+    host_display = "localhost" if bind in ("127.0.0.1", "0.0.0.0") else bind
+    console.print(
+        f"\n[bold green]✓ Environment ready![/bold green]  "
+        f"http://{host_display}:{port}\n"
+        f"  user: admin  |  password: admin  |  db: sandbox"
+    )
