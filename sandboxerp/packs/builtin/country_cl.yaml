@@ -1,0 +1,348 @@
+# Country Pack — Chile
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: cl
+  name: Chile
+  locale: es_CL          # Faker locale for names, addresses, etc.
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_cl            # base: chart of accounts, taxes, fiscal positions
+      - l10n_cl_edi        # electronic invoicing (DTE / SII)
+      - l10n_cl_reports    # F29, Balance Tributario 8 columnas
+  chart_of_accounts: l10n_cl
+  currency: CLP
+  language: es_CL
+  country_code: CL
+  post_install:
+    - set_currency: CLP
+    - set_language: es_CL
+    - set_country: CL
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: IVA
+  tax_rate: 0.19
+  tax_account: IVA Débito Fiscal
+  id_label: RUT
+  id_format: "XX.XXX.XXX-X"        # display format with dots and dash
+  faker_person_id: person_rut       # Faker es_CL method for person RUT
+  faker_company_id: company_rut     # Faker es_CL method for company RUT
+  sii_environment: certification    # 'certification' for sandbox, 'production' for live
+
+# ─────────────────────────────────────────
+# taxpayer_types  (required by l10n_cl_edi)
+# ─────────────────────────────────────────
+taxpayer_types:
+  - code: "1"
+    label: 1ª Categoría
+    description: Empresa o persona que tributa en primera categoría (renta efectiva)
+    odoo_field: l10n_cl_sii_taxpayer_type
+    default: true
+  - code: "2"
+    label: 2ª Categoría
+    description: Persona natural que tributa en segunda categoría (honorarios)
+    odoo_field: l10n_cl_sii_taxpayer_type
+  - code: "3"
+    label: Boleta
+    description: Consumidor final (persona natural sin actividad comercial)
+    odoo_field: l10n_cl_sii_taxpayer_type
+  - code: "4"
+    label: Extranjero
+    description: Entidad o persona sin RUT chileno
+    odoo_field: l10n_cl_sii_taxpayer_type
+
+# ─────────────────────────────────────────
+# document_types  (DTE / SII codes)
+# ─────────────────────────────────────────
+document_types:
+  - code: 33
+    name: Factura Electrónica
+    short: factura
+    affects_vat: true
+    b2b: true
+    b2c: false
+    default_sale: true
+  - code: 34
+    name: Factura No Afecta o Exenta Electrónica
+    short: factura_exenta
+    affects_vat: false
+    b2b: true
+    b2c: false
+  - code: 39
+    name: Boleta Electrónica
+    short: boleta
+    affects_vat: true
+    b2b: false
+    b2c: true
+    default_pos: true
+  - code: 41
+    name: Boleta Exenta Electrónica
+    short: boleta_exenta
+    affects_vat: false
+    b2b: false
+    b2c: true
+  - code: 46
+    name: Factura de Compra Electrónica
+    short: factura_compra
+    affects_vat: true
+    b2b: true
+    b2c: false
+  - code: 52
+    name: Guía de Despacho Electrónica
+    short: guia_despacho
+    affects_vat: false
+    b2b: true
+    b2c: false
+  - code: 56
+    name: Nota de Débito Electrónica
+    short: nota_debito
+    affects_vat: true
+    b2b: true
+    b2c: true
+  - code: 61
+    name: Nota de Crédito Electrónica
+    short: nota_credito
+    affects_vat: true
+    b2b: true
+    b2c: true
+
+# ─────────────────────────────────────────
+# banks  (SBIF codes — CMF Chile)
+# ─────────────────────────────────────────
+banks:
+  - code: "012"
+    name: Banco del Estado de Chile
+    short: BancoEstado
+    swift: BECHCLRM
+  - code: "001"
+    name: Banco de Chile
+    short: Banco de Chile
+    swift: BCHICLRM
+  - code: "016"
+    name: Banco de Crédito e Inversiones
+    short: BCI
+    swift: CREDCLRM
+  - code: "037"
+    name: Banco Santander-Chile
+    short: Santander
+    swift: BSCHCLRM
+  - code: "039"
+    name: Banco Itaú Chile
+    short: Itaú
+    swift: ITAUCLRM
+  - code: "014"
+    name: Scotiabank Chile
+    short: Scotiabank
+    swift: BKSACLRM
+  - code: "028"
+    name: Banco BICE
+    short: BICE
+    swift: BICECLRM
+  - code: "049"
+    name: Banco Security
+    short: Security
+    swift: BSCLCLRM
+  - code: "051"
+    name: Banco Falabella
+    short: Falabella
+    swift: FALACLRM
+  - code: "055"
+    name: Banco Consorcio
+    short: Consorcio
+    swift: MNEXCLRM
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{street} {number}, {commune}, {city}, {region}"
+  street_suffixes:
+    - Avenida
+    - Calle
+    - Pasaje
+    - Camino
+    - Boulevard
+    - Ruta
+  communes_by_region:
+    RM:
+      - Santiago
+      - Providencia
+      - Las Condes
+      - Ñuñoa
+      - Maipú
+      - La Florida
+      - Pudahuel
+      - Quilicura
+      - San Bernardo
+      - Puente Alto
+    I:
+      - Iquique
+      - Alto Hospicio
+      - Pozo Almonte
+    II:
+      - Antofagasta
+      - Calama
+      - Tocopilla
+    III:
+      - Copiapó
+      - Vallenar
+      - Chañaral
+    IV:
+      - La Serena
+      - Coquimbo
+      - Ovalle
+    V:
+      - Valparaíso
+      - Viña del Mar
+      - Quilpué
+      - Villa Alemana
+      - San Antonio
+    VI:
+      - Rancagua
+      - San Fernando
+      - Rengo
+    VII:
+      - Talca
+      - Curicó
+      - Linares
+    VIII:
+      - Concepción
+      - Talcahuano
+      - Chillán
+      - Los Ángeles
+      - Coronel
+    IX:
+      - Temuco
+      - Padre Las Casas
+      - Villarrica
+    X:
+      - Puerto Montt
+      - Osorno
+      - Puerto Varas
+    XI:
+      - Coyhaique
+      - Chile Chico
+    XII:
+      - Punta Arenas
+      - Puerto Natales
+    XIV:
+      - Valdivia
+      - La Unión
+    XV:
+      - Arica
+      - Putre
+    XVI:
+      - Chillán
+      - San Carlos
+
+# ─────────────────────────────────────────
+# geography  (Layer 1)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: XV
+      name: Arica y Parinacota
+      capital: Arica
+    - code: I
+      name: Tarapacá
+      capital: Iquique
+    - code: II
+      name: Antofagasta
+      capital: Antofagasta
+    - code: III
+      name: Atacama
+      capital: Copiapó
+    - code: IV
+      name: Coquimbo
+      capital: La Serena
+    - code: V
+      name: Valparaíso
+      capital: Valparaíso
+    - code: RM
+      name: Metropolitana de Santiago
+      capital: Santiago
+      default: true
+    - code: VI
+      name: "O'Higgins"
+      capital: Rancagua
+    - code: VII
+      name: Maule
+      capital: Talca
+    - code: XVI
+      name: Ñuble
+      capital: Chillán
+    - code: VIII
+      name: Biobío
+      capital: Concepción
+    - code: IX
+      name: La Araucanía
+      capital: Temuco
+    - code: XIV
+      name: Los Ríos
+      capital: Valdivia
+    - code: X
+      name: Los Lagos
+      capital: Puerto Montt
+    - code: XI
+      name: Aysén
+      capital: Coyhaique
+    - code: XII
+      name: Magallanes
+      capital: Punta Arenas
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - S.A.
+    - SpA
+    - Ltda.
+    - EIRL
+    - S.A.C.
+  economic_activities:
+    # Sample of common SII activity codes (código de actividad económica)
+    - code: "474100"
+      description: "Venta al por menor de computadores, equipo periférico y programas informáticos"
+    - code: "471100"
+      description: "Venta al por menor en supermercados y almacenes"
+    - code: "461000"
+      description: "Venta al por mayor a cambio de una retribución o por contrata"
+    - code: "620100"
+      description: "Actividades de programación informática"
+    - code: "620200"
+      description: "Consultoría de informática y gestión de instalaciones informáticas"
+    - code: "691000"
+      description: "Actividades jurídicas"
+    - code: "692000"
+      description: "Actividades de contabilidad, teneduría de libros y auditoría"
+    - code: "702000"
+      description: "Actividades de consultoría de gestión empresarial"
+    - code: "461300"
+      description: "Venta al por mayor de materiales de construcción"
+    - code: "101100"
+      description: "Elaboración y conservación de carne"
+    - code: "561000"
+      description: "Actividades de restaurantes y de servicio móvil de comidas"
+    - code: "451000"
+      description: "Venta de vehículos automotores"
+    - code: "412000"
+      description: "Construcción de edificios residenciales y no residenciales"
+    - code: "491000"
+      description: "Transporte ferroviario interurbano de pasajeros"
+    - code: "494100"
+      description: "Transporte de carga por carretera"
