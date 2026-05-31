@@ -25,6 +25,7 @@ from pathlib import Path
 from rich.console import Console
 
 from sandboxerp.engine.docker import (
+    DEFAULT_COMPOSE_DIR,
     destroy_environment,
     ensure_images,
     environment_exists,
@@ -38,7 +39,6 @@ from sandboxerp.engine.installer import install
 console = Console()
 
 # Default directory where the compose file is written.
-DEFAULT_COMPOSE_DIR = Path.home() / ".sandboxerp" / "env"
 
 # Supported values for validation.
 SUPPORTED_COUNTRIES = {"cl", "mx", "ar", "co", "pe"}

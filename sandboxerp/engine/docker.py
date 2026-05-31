@@ -32,6 +32,7 @@ LABEL_KEY = "sandboxerp"
 LABEL_VALUE = "true"
 DEFAULT_ODOO_PORT = 8069
 DEFAULT_BIND = "127.0.0.1"
+DEFAULT_COMPOSE_DIR = Path.home() / ".sandboxerp" / "env"
 
 
 # ─────────────────────────────────────────
