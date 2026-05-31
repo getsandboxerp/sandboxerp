@@ -24,22 +24,21 @@ Examples::
     sandbox generate --country cl --industry retail --profile small \\
         --seed 42 --bind 0.0.0.0 --port 8069
 
+:author: Hector Colina / Team360 <https://team360.cl>
 """
 
 import typer
 from rich.console import Console
 
+from sandboxerp.engine.generator import (
+    SUPPORTED_COUNTRIES,
+    SUPPORTED_INDUSTRIES,
+    SUPPORTED_PROFILES,
+    generate_environment,
+)
+
 app = typer.Typer(help="Generate a complete Odoo sandbox environment.", no_args_is_help=True)
 console = Console()
-
-# ---------------------------------------------------------------------------
-# Country / industry / profile enumerations
-# (will be replaced by dynamic pack registry in a future layer)
-# ---------------------------------------------------------------------------
-
-SUPPORTED_COUNTRIES = ["cl", "mx"]
-SUPPORTED_INDUSTRIES = ["retail", "accounting", "manufacturing"]
-SUPPORTED_PROFILES = ["small", "medium", "enterprise", "benchmark"]
 
 # ---------------------------------------------------------------------------
 # Command
@@ -53,7 +52,7 @@ def generate(
         "-c",
         help=(
             "ISO-3166-1 alpha-2 country code. "
-            f"Available in free tier: {', '.join(SUPPORTED_COUNTRIES)}."
+            f"Available: {', '.join(sorted(SUPPORTED_COUNTRIES))}."
         ),
     ),
     industry: str = typer.Option(
@@ -62,7 +61,7 @@ def generate(
         "-i",
         help=(
             "Industry vertical for the generated company. "
-            f"Choices: {', '.join(SUPPORTED_INDUSTRIES)}."
+            f"Choices: {', '.join(sorted(SUPPORTED_INDUSTRIES))}."
         ),
     ),
     profile: str = typer.Option(
@@ -71,7 +70,7 @@ def generate(
         "-p",
         help=(
             "Company size / data-volume profile. "
-            f"Choices: {', '.join(SUPPORTED_PROFILES)}."
+            f"Choices: {', '.join(sorted(SUPPORTED_PROFILES))}."
         ),
     ),
     seed: int = typer.Option(
@@ -98,6 +97,12 @@ def generate(
         "--port",
         help="Host port to forward to Odoo's internal 8069.",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Destroy any existing environment before generating.",
+    ),
 ) -> None:
     """
     Generate a complete, reproducible Odoo sandbox environment.
@@ -106,24 +111,42 @@ def generate(
     products, invoices, payments …) is fabricated — never real.
 
     Args:
-        country:  ISO-3166-1 alpha-2 country code (``cl``, ``mx``).
-        industry: Industry vertical (``retail``, ``accounting``, …).
+        country:  ISO-3166-1 alpha-2 country code.
+        industry: Industry vertical.
         profile:  Company size / data-volume profile.
         seed:     Random seed for reproducibility.
         bind:     Network interface for the Odoo container.
         port:     Host port mapped to Odoo.
+        force:    Destroy existing environment before generating.
 
     Raises:
         typer.Abort: When the user declines the ``--bind 0.0.0.0`` warning.
         typer.BadParameter: When an unsupported country, industry, or profile
             is supplied.
+        typer.Exit: On Docker errors or if an environment already exists
+            and ``--force`` was not passed.
     """
     # ------------------------------------------------------------------
     # Input validation
     # ------------------------------------------------------------------
-    _validate_country(country)
-    _validate_industry(industry)
-    _validate_profile(profile)
+    if country not in SUPPORTED_COUNTRIES:
+        raise typer.BadParameter(
+            f"Country '{country}' is not supported. "
+            f"Available: {', '.join(sorted(SUPPORTED_COUNTRIES))}.",
+            param_hint="'--country'",
+        )
+    if industry not in SUPPORTED_INDUSTRIES:
+        raise typer.BadParameter(
+            f"Industry '{industry}' is not supported. "
+            f"Available: {', '.join(sorted(SUPPORTED_INDUSTRIES))}.",
+            param_hint="'--industry'",
+        )
+    if profile not in SUPPORTED_PROFILES:
+        raise typer.BadParameter(
+            f"Profile '{profile}' is not supported. "
+            f"Available: {', '.join(sorted(SUPPORTED_PROFILES))}.",
+            param_hint="'--profile'",
+        )
 
     # ------------------------------------------------------------------
     # Security warning for network exposure
@@ -152,64 +175,18 @@ def generate(
     )
 
     # ------------------------------------------------------------------
-    # TODO (Layer 2 — docker.py):  pull images, build docker-compose
-    # TODO (Layer 3 — generator.py): install modules, load country pack
-    # TODO (Layer 5 — behaviour.py): generate causal ERP data
+    # Engine
     # ------------------------------------------------------------------
-
-    console.print("[bold yellow]⚙  Engine not yet implemented — stub only.[/bold yellow]")
-
-
-# ---------------------------------------------------------------------------
-# Private validators
-# ---------------------------------------------------------------------------
-
-def _validate_country(country: str) -> None:
-    """Raise ``typer.BadParameter`` when *country* is not in the free tier.
-
-    Args:
-        country: Value supplied via ``--country``.
-
-    Raises:
-        typer.BadParameter: When *country* is not supported.
-    """
-    if country not in SUPPORTED_COUNTRIES:
-        raise typer.BadParameter(
-            f"Country '{country}' is not supported. "
-            f"Available: {', '.join(SUPPORTED_COUNTRIES)}.",
-            param_hint="'--country'",
+    try:
+        generate_environment(
+            country=country,
+            industry=industry,
+            profile=profile,
+            seed=seed,
+            bind=bind,
+            port=port,
+            force=force,
         )
-
-
-def _validate_industry(industry: str) -> None:
-    """Raise ``typer.BadParameter`` when *industry* is not recognised.
-
-    Args:
-        industry: Value supplied via ``--industry``.
-
-    Raises:
-        typer.BadParameter: When *industry* is not supported.
-    """
-    if industry not in SUPPORTED_INDUSTRIES:
-        raise typer.BadParameter(
-            f"Industry '{industry}' is not supported. "
-            f"Available: {', '.join(SUPPORTED_INDUSTRIES)}.",
-            param_hint="'--industry'",
-        )
-
-
-def _validate_profile(profile: str) -> None:
-    """Raise ``typer.BadParameter`` when *profile* is not recognised.
-
-    Args:
-        profile: Value supplied via ``--profile``.
-
-    Raises:
-        typer.BadParameter: When *profile* is not supported.
-    """
-    if profile not in SUPPORTED_PROFILES:
-        raise typer.BadParameter(
-            f"Profile '{profile}' is not supported. "
-            f"Available: {', '.join(SUPPORTED_PROFILES)}.",
-            param_hint="'--profile'",
-        )
+    except (RuntimeError, PermissionError) as exc:
+        console.print(f"[bold red]✗ Error:[/bold red] {exc}")
+        raise typer.Exit(code=1)

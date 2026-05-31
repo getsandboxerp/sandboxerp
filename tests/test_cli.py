@@ -11,8 +11,13 @@ Covers:
   ``--force`` flag on destroy.
 
 All tests use Typer's built-in ``CliRunner`` (wraps Click's runner) so no
-real Docker interaction or file I/O occurs — the engine stubs return early.
+real Docker interaction or file I/O occurs — ``generate_environment`` is
+mocked at the CLI boundary.
+
+:author: Hector Colina / Team360 <https://team360.cl>
 """
+
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -20,6 +25,9 @@ from typer.testing import CliRunner
 from sandboxerp.cli.main import app
 
 runner = CliRunner()
+
+# Path to mock for all generate tests that reach the engine
+_GENERATE_ENGINE = "sandboxerp.cli.generate.generate_environment"
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +59,6 @@ class TestRootApp:
         """``-V`` prints a version string and exits 0."""
         result = invoke("-V")
         assert result.exit_code == 0
-        # Should contain the package name regardless of version number
         assert "SandboxERP" in result.output
 
     def test_version_flag_long(self):
@@ -83,20 +90,38 @@ class TestGenerate:
         result = invoke("generate", "--country", "cl", "--profile", "small")
         assert result.exit_code != 0
 
-    def test_valid_flags_runs_stub(self):
-        """
-        A fully-specified generate call should reach the stub message without
-        error.
-        """
-        result = invoke(
-            "generate",
-            "--country", "cl",
-            "--industry", "retail",
-            "--profile", "small",
-            "--seed", "42",
-        )
+    def test_valid_flags_calls_engine(self):
+        """A fully-specified generate call must invoke ``generate_environment``."""
+        with patch(_GENERATE_ENGINE) as mock_engine:
+            result = invoke(
+                "generate",
+                "--country", "cl",
+                "--industry", "retail",
+                "--profile", "small",
+                "--seed", "42",
+            )
         assert result.exit_code == 0
-        assert "stub" in result.output.lower() or "not yet implemented" in result.output.lower()
+        mock_engine.assert_called_once_with(
+            country="cl",
+            industry="retail",
+            profile="small",
+            seed=42,
+            bind="127.0.0.1",
+            port=8069,
+            force=False,
+        )
+
+    def test_engine_runtime_error_exits_nonzero(self):
+        """A ``RuntimeError`` from the engine must print an error and exit 1."""
+        with patch(_GENERATE_ENGINE, side_effect=RuntimeError("Docker not running")):
+            result = invoke(
+                "generate",
+                "--country", "cl",
+                "--industry", "retail",
+                "--profile", "small",
+            )
+        assert result.exit_code == 1
+        assert "Error" in result.output or "Docker" in result.output
 
     def test_invalid_country_rejected(self):
         """Unsupported country code must produce a BadParameter error."""
@@ -130,11 +155,22 @@ class TestGenerate:
         assert result.exit_code != 0
 
     def test_default_profile_is_small(self):
-        """
-        Omitting --profile should default to 'small' and succeed.
-        """
-        result = invoke("generate", "--country", "cl", "--industry", "retail")
+        """Omitting --profile should default to 'small' and succeed."""
+        with patch(_GENERATE_ENGINE):
+            result = invoke("generate", "--country", "cl", "--industry", "retail")
         assert result.exit_code == 0
+
+    def test_force_flag_passed_to_engine(self):
+        """``--force`` must be forwarded to ``generate_environment``."""
+        with patch(_GENERATE_ENGINE) as mock_engine:
+            invoke(
+                "generate",
+                "--country", "cl",
+                "--industry", "retail",
+                "--force",
+            )
+        _, kwargs = mock_engine.call_args
+        assert kwargs["force"] is True
 
     def test_bind_warning_abort(self):
         """
@@ -146,19 +182,18 @@ class TestGenerate:
             ["generate", "--country", "cl", "--industry", "retail", "--bind", "0.0.0.0"],
             input="n\n",
         )
-        # Abort raises typer.Abort which causes exit_code 1
         assert result.exit_code != 0 or "Aborted" in result.output
 
     def test_bind_warning_confirm(self):
-        """
-        Accepting the ``--bind 0.0.0.0`` warning should continue to the stub.
-        """
-        result = runner.invoke(
-            app,
-            ["generate", "--country", "cl", "--industry", "retail", "--bind", "0.0.0.0"],
-            input="y\n",
-        )
+        """Accepting the ``--bind 0.0.0.0`` warning must call the engine."""
+        with patch(_GENERATE_ENGINE) as mock_engine:
+            result = runner.invoke(
+                app,
+                ["generate", "--country", "cl", "--industry", "retail", "--bind", "0.0.0.0"],
+                input="y\n",
+            )
         assert result.exit_code == 0
+        mock_engine.assert_called_once()
 
     def test_generate_help(self):
         """``sandbox generate --help`` should exit 0."""
