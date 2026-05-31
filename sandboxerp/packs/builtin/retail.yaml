@@ -1,0 +1,337 @@
+# Industry Pack — Retail
+# Layer: 3 (industry)
+# Generic: country-agnostic. All fiscal/currency data comes from the country pack.
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: retail
+  name: Retail
+  layer: 3
+  generic: true          # no country-specific data in this pack
+  premium: false
+
+  odoo_modules:
+    install_order:
+      - sale_management   # Sales + pricelists
+      - purchase          # Purchase orders
+      - stock             # Inventory / warehouse
+      - account           # Accounting (required by sale + purchase)
+      - sale_stock        # Bridge: SO → delivery order
+
+# ─────────────────────────────────────────
+# products
+# ─────────────────────────────────────────
+products:
+  type: storable          # tracked in inventory (not consumable / service)
+  cost_method: average_price
+
+  categories:
+    - code: ELEC
+      name: Electrónica
+      parent: All
+      price_range: [15000, 800000]
+      margin_pct: 0.25
+      turnover: high
+    - code: ROPA
+      name: Ropa y Accesorios
+      parent: All
+      price_range: [3000, 150000]
+      margin_pct: 0.45
+      turnover: medium
+    - code: HOGAR
+      name: Hogar y Decoración
+      parent: All
+      price_range: [2000, 200000]
+      margin_pct: 0.35
+      turnover: medium
+    - code: ALIM
+      name: Alimentos y Bebidas
+      parent: All
+      price_range: [500, 20000]
+      margin_pct: 0.20
+      turnover: very_high
+    - code: DEPOR
+      name: Deportes y Outdoor
+      parent: All
+      price_range: [5000, 300000]
+      margin_pct: 0.30
+      turnover: medium
+    - code: BELLEZA
+      name: Belleza y Cuidado Personal
+      parent: All
+      price_range: [1000, 50000]
+      margin_pct: 0.40
+      turnover: high
+
+  attributes:
+    - name: Color
+      values: [Negro, Blanco, Rojo, Azul, Verde, Gris, Beige, Café]
+      applies_to: [ROPA, HOGAR, DEPOR]
+    - name: Talla
+      values: [XS, S, M, L, XL, XXL]
+      applies_to: [ROPA, DEPOR]
+    - name: Capacidad
+      values: [64GB, 128GB, 256GB, 512GB, 1TB]
+      applies_to: [ELEC]
+    - name: Material
+      values: [Algodón, Poliéster, Cuero, Plástico, Metal, Madera]
+      applies_to: [ROPA, HOGAR]
+
+  sku_prefix_by_category:
+    ELEC: EL
+    ROPA: RP
+    HOGAR: HG
+    ALIM: AL
+    DEPOR: DP
+    BELLEZA: BL
+
+  # Number of product templates to generate per profile
+  count_by_profile:
+    small: 30
+    medium: 120
+    enterprise: 500
+    benchmark: 2000
+
+# ─────────────────────────────────────────
+# customers
+# ─────────────────────────────────────────
+customers:
+  segments:
+    - code: b2c_frequent
+      label: Consumidor frecuente
+      b2b: false
+      payment_term: immediate    # contado
+      avg_order_value: medium
+      order_frequency: high
+      weight: 0.50               # proportion of generated customers
+
+    - code: b2c_occasional
+      label: Consumidor ocasional
+      b2b: false
+      payment_term: immediate
+      avg_order_value: low
+      order_frequency: low
+      weight: 0.30
+
+    - code: b2b_wholesale
+      label: Cliente mayorista
+      b2b: true
+      payment_term: 30_days
+      avg_order_value: high
+      order_frequency: medium
+      weight: 0.15
+
+    - code: b2b_corporate
+      label: Cliente corporativo
+      b2b: true
+      payment_term: 60_days
+      avg_order_value: very_high
+      order_frequency: low
+      weight: 0.05
+
+  count_by_profile:
+    small: 50
+    medium: 300
+    enterprise: 2000
+    benchmark: 10000
+
+# ─────────────────────────────────────────
+# suppliers
+# ─────────────────────────────────────────
+suppliers:
+  profiles:
+    - code: local
+      label: Proveedor local
+      lead_time_days: [3, 10]
+      payment_term: 30_days
+      reliability: high          # low stockout probability
+      weight: 0.60
+
+    - code: importer
+      label: Importador
+      lead_time_days: [20, 45]
+      payment_term: 60_days
+      reliability: medium
+      weight: 0.30
+
+    - code: direct_brand
+      label: Marca directa
+      lead_time_days: [7, 21]
+      payment_term: 45_days
+      reliability: high
+      weight: 0.10
+
+  count_by_profile:
+    small: 8
+    medium: 30
+    enterprise: 100
+    benchmark: 400
+
+  # Categories each supplier type typically covers
+  category_affinity:
+    local: [ALIM, BELLEZA, HOGAR]
+    importer: [ELEC, ROPA, DEPOR]
+    direct_brand: [ELEC, ROPA, DEPOR, BELLEZA]
+
+# ─────────────────────────────────────────
+# transactions  (causal chain — Layer 5)
+# ─────────────────────────────────────────
+transactions:
+  # Canonical retail flow
+  chain:
+    - step: purchase_order
+      model: purchase.order
+      triggers: receipt
+    - step: receipt
+      model: stock.picking
+      type: incoming
+      triggers: vendor_bill
+    - step: vendor_bill
+      model: account.move
+      move_type: in_invoice
+      triggers: vendor_payment
+    - step: vendor_payment
+      model: account.payment
+    - step: sale_order
+      model: sale.order
+      triggers: delivery
+    - step: delivery
+      model: stock.picking
+      type: outgoing
+      triggers: customer_invoice
+    - step: customer_invoice
+      model: account.move
+      move_type: out_invoice
+      triggers: customer_payment
+    - step: customer_payment
+      model: account.payment
+
+  # Volume of complete SO→Payment chains per profile
+  so_chains_by_profile:
+    small: 50
+    medium: 300
+    enterprise: 2000
+    benchmark: 10000
+
+  # Volume of PO→Receipt chains per profile
+  po_chains_by_profile:
+    small: 20
+    medium: 100
+    enterprise: 600
+    benchmark: 3000
+
+  payment_terms:
+    immediate:
+      days: 0
+      label: Contado
+    30_days:
+      days: 30
+      label: 30 días
+    60_days:
+      days: 60
+      label: 60 días
+
+# ─────────────────────────────────────────
+# inventory
+# ─────────────────────────────────────────
+inventory:
+  warehouse:
+    name: Main Warehouse
+    short_name: WH
+    locations:
+      - WH/Stock
+      - WH/Input
+      - WH/Output
+      - WH/Quality Control
+
+  reorder_rules:
+    # min/max stock by category turnover
+    very_high:
+      min_qty: 50
+      max_qty: 300
+      multiple_qty: 50
+    high:
+      min_qty: 20
+      max_qty: 100
+      multiple_qty: 10
+    medium:
+      min_qty: 10
+      max_qty: 50
+      multiple_qty: 5
+    low:
+      min_qty: 5
+      max_qty: 20
+      multiple_qty: 1
+
+  initial_stock_by_profile:
+    small: 1        # 1x reorder max_qty per product
+    medium: 2
+    enterprise: 3
+    benchmark: 5
+
+# ─────────────────────────────────────────
+# pos  — Point of Sale  (PREMIUM)
+# ─────────────────────────────────────────
+pos:
+  premium: true
+  odoo_modules:
+    - point_of_sale
+
+  config:
+    name: Caja Principal
+    journal: POS Sales
+    picking_type: PickingType.outgoing
+
+  payment_methods:
+    - name: Efectivo
+      type: cash
+      default: true
+    - name: Tarjeta de Débito
+      type: bank
+    - name: Tarjeta de Crédito
+      type: bank
+    - name: Transferencia
+      type: bank
+
+  sessions_by_profile:
+    small: 5
+    medium: 30
+    enterprise: 150
+    benchmark: 500
+
+  orders_per_session:
+    small: [10, 30]
+    medium: [20, 60]
+    enterprise: [50, 150]
+    benchmark: [100, 300]
+
+  return_rate: 0.03          # 3% of POS orders generate a return
+
+# ─────────────────────────────────────────
+# advanced_inventory  (PREMIUM)
+# ─────────────────────────────────────────
+advanced_inventory:
+  premium: true
+  odoo_modules:
+    - stock_landed_costs    # landed costs on receipts
+
+  multi_warehouse:
+    enabled: true
+    warehouses_by_profile:
+      small: 1
+      medium: 2
+      enterprise: 5
+      benchmark: 10
+
+  tracking:
+    lot_categories: [ALIM]          # lots for food products
+    serial_categories: [ELEC]       # serial numbers for electronics
+    none_categories: [ROPA, HOGAR, DEPOR, BELLEZA]
+
+  inter_warehouse_transfers:
+    frequency: weekly
+    volume_pct: 0.05               # 5% of stock moves are inter-warehouse
