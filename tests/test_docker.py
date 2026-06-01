@@ -247,69 +247,85 @@ class TestBuildOdooTemplate:
 
 
 class TestCreateDatabase:
-    """Tests for create_database() — all HTTP calls are mocked."""
+    """Tests for create_database() — all HTTP calls are mocked.
+
+    Odoo 17 /web/database/create is a form POST endpoint, not JSON-RPC.
+    Success is indicated by any non-500 HTTP response.
+    """
+
+    def _ok(self):
+        r = MagicMock()
+        r.status_code = 200
+        return r
+
+    def _err(self, status=500):
+        r = MagicMock()
+        r.status_code = status
+        return r
 
     def test_returns_on_success(self):
-        """A result=True response resolves immediately."""
         with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
-            mock_post.return_value.json.return_value = {"result": True}
+            mock_post.return_value = self._ok()
             create_database(timeout=10, interval=0)
             mock_post.assert_called_once()
 
-    def test_returns_if_db_already_exists(self):
-        """An 'already exists' error is treated as success."""
+    def test_returns_on_redirect(self):
         with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
-            mock_post.return_value.json.return_value = {
-                "error": {
-                    "data": {"message": "database already exists"}
-                }
-            }
+            mock_post.return_value = self._err(302)
             create_database(timeout=10, interval=0)
             mock_post.assert_called_once()
 
     def test_retries_on_transient_error(self):
-        """Network errors trigger retries until success."""
-        responses = [
-            Exception("connection refused"),
-            Exception("connection refused"),
-            MagicMock(**{"json.return_value": {"result": True}}),
-        ]
         call_count = 0
+        ok = self._ok()
 
         def side_effect(*args, **kwargs):
             nonlocal call_count
-            r = responses[call_count]
             call_count += 1
-            if isinstance(r, Exception):
-                raise r
-            return r
+            if call_count < 3:
+                raise Exception("connection refused")
+            return ok
 
         with patch("sandboxerp.engine.docker.httpx.post", side_effect=side_effect):
             create_database(timeout=30, interval=0)
-
         assert call_count == 3
 
+    def test_retries_on_500(self):
+        call_count = 0
+        ok = self._ok()
+        err = self._err(500)
+
+        def side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return err if call_count == 1 else ok
+
+        with patch("sandboxerp.engine.docker.httpx.post", side_effect=side_effect):
+            create_database(timeout=30, interval=0)
+        assert call_count == 2
+
     def test_raises_on_timeout(self):
-        """RuntimeError is raised if the database is never created."""
         with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
-            mock_post.return_value.json.return_value = {
-                "error": {"data": {"message": "some unrecoverable error"}}
-            }
+            mock_post.return_value = self._err(500)
             with pytest.raises(RuntimeError, match="Could not create Odoo database"):
                 create_database(timeout=0, interval=0)
 
     def test_posts_to_correct_url(self):
-        """The request targets /web/database/create on the given host/port."""
         with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
-            mock_post.return_value.json.return_value = {"result": True}
+            mock_post.return_value = self._ok()
             create_database(host="10.0.0.1", port=8080, timeout=10, interval=0)
-            url = mock_post.call_args[0][0]
-            assert url == "http://10.0.0.1:8080/web/database/create"
+            assert mock_post.call_args[0][0] == "http://10.0.0.1:8080/web/database/create"
 
     def test_payload_contains_db_name(self):
-        """The JSON payload includes the requested database name."""
         with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
-            mock_post.return_value.json.return_value = {"result": True}
+            mock_post.return_value = self._ok()
             create_database(db_name="mydb", timeout=10, interval=0)
-            payload = mock_post.call_args[1]["json"]
-            assert payload["params"]["name"] == "mydb"
+            assert mock_post.call_args[1]["data"]["name"] == "mydb"
+
+    def test_uses_form_post_not_json(self):
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value = self._ok()
+            create_database(timeout=10, interval=0)
+            call_kwargs = mock_post.call_args[1]
+            assert "data" in call_kwargs
+            assert "json" not in call_kwargs
