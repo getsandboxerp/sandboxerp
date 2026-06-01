@@ -19,6 +19,7 @@ import pytest
 
 from sandboxerp.engine.installer import (
     ODOO_DB,
+    _configure_admin_user,
     _configure_company,
     _configure_language,
     _generate_partners,
@@ -372,3 +373,51 @@ class TestConfigureLanguage:
         mock_client.search.return_value = [1]
         _configure_language(mock_client, _COUNTRY_PACK)
         mock_client.write.assert_called_once()
+
+
+# ─────────────────────────────────────────
+# _configure_admin_user
+# ─────────────────────────────────────────
+
+
+class TestConfigureAdminUser:
+    def test_assigns_all_three_groups(self, mock_client):
+        """All three admin groups are assigned when found."""
+        mock_client.search_read.return_value = [
+            {"id": 10, "full_name": "Inventory/Administrator"},
+            {"id": 11, "full_name": "Sales/Administrator"},
+            {"id": 12, "full_name": "Purchase/Administrator"},
+        ]
+        _configure_admin_user(mock_client)
+        assert mock_client.execute.call_count == 3
+        for call_args in mock_client.execute.call_args_list:
+            args = call_args.args
+            assert args[0] == "res.groups"
+            assert args[1] == "write"
+            assert args[3] == {"users": [[4, 2]]}
+
+    def test_handles_empty_groups(self, mock_client):
+        """No execute calls when no groups are found."""
+        mock_client.search_read.return_value = []
+        _configure_admin_user(mock_client)
+        mock_client.execute.assert_not_called()
+
+    def test_silences_group_write_error(self, mock_client):
+        """A failure on one group does not abort the rest."""
+        mock_client.search_read.return_value = [
+            {"id": 10, "full_name": "Inventory/Administrator"},
+            {"id": 11, "full_name": "Sales/Administrator"},
+        ]
+        mock_client.execute.side_effect = [Exception("write failed"), None]
+        _configure_admin_user(mock_client)
+        assert mock_client.execute.call_count == 2
+
+    def test_searches_correct_group_names(self, mock_client):
+        """search_read targets the three expected full_name values."""
+        mock_client.search_read.return_value = []
+        _configure_admin_user(mock_client)
+        domain = mock_client.search_read.call_args.args[1]
+        names = domain[0][2]
+        assert "Inventory/Administrator" in names
+        assert "Sales/Administrator" in names
+        assert "Purchase/Administrator" in names
