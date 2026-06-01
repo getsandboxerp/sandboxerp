@@ -95,6 +95,9 @@ def install(
     console.print("[bold]→[/bold] Configuring company...")
     _configure_company(client, country_pack)
 
+    console.print("[bold]→[/bold] Configuring admin user...")
+    _configure_admin_user(client)
+
     console.print("[bold]→[/bold] Generating master data...")
     fake = Faker(country_pack["meta"]["locale"])
     fake.seed_instance(seed)
@@ -286,6 +289,54 @@ def _configure_company(client: OdooClient, country_pack: dict) -> None:
         console.print(
             f"  [dim]country={country_code} currency={currency_name}[/dim]"
         )
+
+
+# ─────────────────────────────────────────
+# Admin user configuration
+# ─────────────────────────────────────────
+
+
+def _configure_admin_user(client: OdooClient) -> None:
+    """Assign administrator groups to the Odoo admin user.
+
+    In a fresh Odoo install with only ``base`` initialised, the admin
+    user lacks the Inventory, Sales and Purchase administrator groups.
+    These groups are created when the corresponding modules are installed
+    but are not automatically assigned to existing users. This function
+    assigns them explicitly so the admin user can operate across all
+    installed apps without manual intervention.
+
+    Uses the ``(4, id)`` many2many command to add without replacing
+    existing group memberships.
+
+    :param client: Authenticated Odoo client.
+    """
+    target_groups = [
+        "Inventory/Administrator",
+        "Sales/Administrator",
+        "Purchase/Administrator",
+    ]
+
+    groups = client.search_read(
+        "res.groups",
+        [["full_name", "in", target_groups]],
+        ["id", "full_name"],
+    )
+
+    assigned = []
+    for group in groups:
+        try:
+            client.execute(
+                "res.groups", "write", [group["id"]], {"users": [[4, 2]]}
+            )
+            assigned.append(group["full_name"])
+        except Exception:
+            pass  # Group may not exist if module is not installed
+
+    if assigned:
+        console.print(f"  [dim]groups assigned: {', '.join(assigned)}[/dim]")
+    else:
+        console.print("  [dim]no groups to assign[/dim]")
 
 
 # ─────────────────────────────────────────
