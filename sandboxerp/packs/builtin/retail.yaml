@@ -26,7 +26,7 @@ meta:
 # products
 # ─────────────────────────────────────────
 products:
-  type: storable          # tracked in inventory (not consumable / service)
+  type: product          # tracked in inventory (not consumable / service)
   cost_method: average_price
 
   categories:
