@@ -64,7 +64,6 @@ class ServiceTemplate:
 class ComposeTemplate:
     """Top-level Compose file template.
 
-    :param version: Compose file format version (default ``"3.8"``).
     :param services: List of :class:`ServiceTemplate` instances.
     :param named_volumes: Names of top-level named volumes to declare.
     :param header_comment: Optional comment written at the top of the file.
@@ -72,7 +71,6 @@ class ComposeTemplate:
 
     services: list[ServiceTemplate]
     named_volumes: list[str] = field(default_factory=list)
-    version: str = "3.8"
     header_comment: Optional[str] = None
 
     def render(self) -> str:
@@ -81,7 +79,6 @@ class ComposeTemplate:
         :return: Multi-line YAML string suitable for ``docker-compose.yml``.
         """
         doc: dict = {
-            "version": self.version,
             "services": {s.name: s.to_dict() for s in self.services},
         }
 
