@@ -12,7 +12,8 @@ Orchestrates the post-Docker phase of environment generation:
 4. Install Odoo modules in the order declared by the packs.
 5. Configure the company (currency, country, language, tax).
 6. Generate synthetic master data: partners, products.
-7. Generate causal transaction chains via the Behaviour Engine.
+7. Generate causal transaction chains via the Behaviour Engine,
+   distributed across months using the Seasonality Engine.
 
 This module is called by :mod:`sandboxerp.engine.generator` once the
 Docker environment is up and Odoo is responding on its HTTP port.
@@ -22,7 +23,9 @@ Docker environment is up and Odoo is responding on its HTTP port.
 
 from __future__ import annotations
 
+import random
 import time
+from datetime import date
 from typing import Any
 
 from faker import Faker
@@ -31,6 +34,9 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 
 from sandboxerp.engine.behaviour import generate_chain
 from sandboxerp.engine.odoo import OdooClient, OdooError
+from sandboxerp.engine.persona_engine import PersonaEngine
+from sandboxerp.engine.seasonality import distribute_volume
+from sandboxerp.engine.time_engine import ObservationWindow, assign_dates
 from sandboxerp.packs.loader import load_country_pack, load_industry_pack
 
 console = Console()
@@ -54,15 +60,18 @@ def install(
     seed: int,
     host: str = "127.0.0.1",
     port: int = 8069,
+    observation_months: int = 12,
 ) -> None:
     """Run the full post-Docker installation pipeline.
 
     :param country: ISO country code (e.g. ``"cl"``).
     :param industry: Industry pack name (e.g. ``"retail"``).
-    :param profile: Scale profile (e.g. ``"small"``).
+    :param profile: Scale profile name (e.g. ``"small"``).
     :param seed: Random seed for reproducible data generation.
     :param host: Odoo host (default ``"127.0.0.1"``).
     :param port: Odoo HTTP port (default ``8069``).
+    :param observation_months: How many months back the observation window
+        spans (default ``12``).
     :raises OdooError: On any XML-RPC failure.
     :raises FileNotFoundError: If a required pack is missing.
     """
@@ -90,6 +99,8 @@ def install(
     partner_ids = _generate_partners(client, country_pack, industry_pack, profile, fake)
     product_ids = _generate_products(client, industry_pack, profile, fake)
 
+    window = ObservationWindow.last_n_months(observation_months)
+
     console.print("[bold]→[/bold] Generating transactions...")
     _generate_transactions(
         client,
@@ -99,6 +110,7 @@ def install(
         seed=seed,
         partner_ids=partner_ids,
         product_ids=product_ids,
+        window=window,
     )
 
     console.print("\n[bold green]✓ Installation complete.[/bold green]")
@@ -203,15 +215,12 @@ def _configure_company(client: OdooClient, country_pack: dict) -> None:
     currency_name = loc.get("currency", "USD")
     country_code = loc.get("country_code", "")
 
-    # Resolve country ID
     country_ids = client.search("res.country", [("code", "=", country_code)])
     country_id = country_ids[0] if country_ids else False
 
-    # Resolve currency ID
     currency_ids = client.search("res.currency", [("name", "=", currency_name)])
     currency_id = currency_ids[0] if currency_ids else False
 
-    # Update main company (id=1)
     values: dict[str, Any] = {}
     if country_id:
         values["country_id"] = country_id
@@ -276,7 +285,6 @@ def _generate_partners(
         console=console,
         transient=True,
     ) as progress:
-        # Customers
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
             vat = getattr(fake, person_rut_method, fake.ssn)()
@@ -294,7 +302,6 @@ def _generate_partners(
             partner_ids.append(pid)
             progress.advance(task)
 
-        # Suppliers
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
             vat = getattr(fake, company_rut_method, fake.ssn)()
@@ -358,9 +365,11 @@ def _generate_products(
             price = round(
                 fake.random.uniform(price_range[0], price_range[1]), 2
             )
-            sku_prefix = industry_pack.get("products", {}) \
-                .get("sku_prefix_by_category", {}) \
+            sku_prefix = (
+                industry_pack.get("products", {})
+                .get("sku_prefix_by_category", {})
                 .get(cat.get("code", "XX"), "PR")
+            )
             internal_ref = f"{sku_prefix}{str(i + 1).zfill(5)}"
 
             record = {
@@ -385,6 +394,27 @@ def _generate_products(
 # ─────────────────────────────────────────
 
 
+def _months_in_window(window: ObservationWindow) -> list[int]:
+    """Return the distinct calendar months covered by *window*.
+
+    :param window: :class:`~sandboxerp.engine.time_engine.ObservationWindow`.
+    :return: Sorted list of month numbers (1–12), possibly with repeats
+        across years collapsed to unique values.
+    """
+    months: list[int] = []
+    current = date(window.start.year, window.start.month, 1)
+    end_month = date(window.end.year, window.end.month, 1)
+    while current <= end_month:
+        if current.month not in months:
+            months.append(current.month)
+        # Advance one month
+        if current.month == 12:
+            current = date(current.year + 1, 1, 1)
+        else:
+            current = date(current.year, current.month + 1, 1)
+    return sorted(months)
+
+
 def _generate_transactions(
     client: OdooClient,
     *,
@@ -394,12 +424,24 @@ def _generate_transactions(
     seed: int,
     partner_ids: list[int],
     product_ids: list[int],
+    window: ObservationWindow,
 ) -> None:
-    """Generate causal ERP transaction chains.
+    """Generate causal ERP transaction chains distributed by seasonality
+    and enriched with persona-consistent behaviour.
 
-    Uses :func:`~sandboxerp.engine.behaviour.generate_chain` to produce
-    causally linked chains (Lead → SO → Delivery → Invoice → Payment)
-    and creates the corresponding Odoo records.
+    Pipeline per chain:
+
+    1. Distribute ``n_chains`` across active months via
+       :func:`~sandboxerp.engine.seasonality.distribute_volume`.
+    2. Assign a :class:`~sandboxerp.engine.persona_engine.Persona` to
+       every partner via :class:`~sandboxerp.engine.persona_engine.PersonaEngine`.
+    3. For each chain: enrich transactions with persona metadata
+       (including ``payment_delay_extra`` on ``customer_invoice`` steps).
+    4. Assign temporally coherent dates via
+       :func:`~sandboxerp.engine.time_engine.assign_dates`, which reads
+       ``payment_delay_extra`` from metadata automatically.
+    5. Create the ``sale.order`` record in Odoo with ``date_order`` and
+       a price scaled by the partner's ``amount_multiplier``.
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
@@ -408,8 +450,9 @@ def _generate_transactions(
     :param seed: Random seed for reproducibility.
     :param partner_ids: List of available partner IDs.
     :param product_ids: List of available product template IDs.
+    :param window: Observation window constraining document dates.
     """
-    import random
+    from datetime import timedelta
 
     rng = random.Random(seed)
     country = country_pack["meta"]["code"]
@@ -421,19 +464,25 @@ def _generate_transactions(
         .get(profile, 10)
     )
 
-    chains = generate_chain(
-        seed=seed,
-        country=country,
-        industry=industry,
-        profile=profile,
-        n_chains=n_chains,
+    # ── Persona Engine: assign personas to all partners ──────────────
+    persona_engine = PersonaEngine(seed=seed)
+    if partner_ids:
+        persona_engine.assign(partner_ids)
+
+    # ── Distribute total chains across months by seasonality ─────────
+    active_months = _months_in_window(window)
+    monthly_counts = distribute_volume(
+        industry,
+        annual_total=n_chains,
+        months=active_months,
     )
 
-    # Resolve pricelist and journal for SO
+    # Resolve pricelist for SO
     pricelist_ids = client.search("product.pricelist", [], limit=1)
     pricelist_id = pricelist_ids[0] if pricelist_ids else False
 
     created_so = 0
+    total_chains = sum(monthly_counts.values())
 
     with Progress(
         TextColumn("  {task.description}"),
@@ -442,44 +491,93 @@ def _generate_transactions(
         console=console,
         transient=True,
     ) as progress:
-        task = progress.add_task("Sale Orders", total=len(chains))
+        task = progress.add_task("Sale Orders", total=total_chains)
 
-        for chain in chains:
-            if not partner_ids or not product_ids:
-                break
+        for month, count in sorted(monthly_counts.items()):
+            # Derive the correct year for this month within the window.
+            # The window may span two calendar years (e.g. Jun 2023–Jun 2024);
+            # prefer the year where the month falls inside the window.
+            year = window.end.year if month <= window.end.month else window.start.year
 
-            partner_id = rng.choice(partner_ids)
-            product_id = rng.choice(product_ids)
+            # Build a month-scoped observation window for date assignment
+            month_start = date(year, month, 1)
+            if month == 12:
+                month_end = date(year, 12, 31)
+            else:
+                month_end = date(year, month + 1, 1) - timedelta(days=1)
 
-            # Find SO transaction in chain
-            so_tx = next((t for t in chain if t.type == "sale_order"), None)
-            if not so_tx:
+            month_window = ObservationWindow(
+                start=max(month_start, window.start),
+                end=min(month_end, window.end),
+            )
+
+            chains = generate_chain(
+                seed=rng.randint(0, 2**31),
+                country=country,
+                industry=industry,
+                profile=profile,
+                n_chains=count,
+            )
+
+            for chain in chains:
+                if not partner_ids or not product_ids:
+                    break
+
+                partner_id = rng.choice(partner_ids)
+                product_id = rng.choice(product_ids)
+
+                # ── Persona: enrich chain with partner behaviour ──────
+                persona_engine.enrich_chain(chain, partner_id=partner_id)
+
+                # ── Time Engine: assign coherent dates ────────────────
+                # payment_delay_extra from persona metadata is read
+                # automatically by assign_dates via _step_delay().
+                dated_chain = assign_dates(chain, window=month_window, rng=rng)
+
+                so_tx = next(
+                    (t for t in dated_chain if t.type == "sale_order"), None
+                )
+                if not so_tx:
+                    progress.advance(task)
+                    continue
+
+                # ── Amount: scale by persona multiplier ───────────────
+                amount_multiplier = so_tx.metadata.get("amount_multiplier", 1.0)
+                scaled_price = round(
+                    so_tx.amount * amount_multiplier / rng.randint(1, 10), 2
+                )
+
+                try:
+                    so_vals: dict[str, Any] = {
+                        "partner_id": partner_id,
+                        "date_order": so_tx.as_odoo_date(),
+                        "order_line": [
+                            (
+                                0,
+                                0,
+                                {
+                                    "product_id": product_id,
+                                    "product_uom_qty": rng.randint(1, 10),
+                                    "price_unit": scaled_price,
+                                },
+                            )
+                        ],
+                    }
+                    if pricelist_id:
+                        so_vals["pricelist_id"] = pricelist_id
+
+                    client.create("sale.order", so_vals)
+                    created_so += 1
+                except OdooError:
+                    pass
+
                 progress.advance(task)
-                continue
 
-            try:
-                so_vals: dict[str, Any] = {
-                    "partner_id": partner_id,
-                    "order_line": [
-                        (
-                            0,
-                            0,
-                            {
-                                "product_id": product_id,
-                                "product_uom_qty": rng.randint(1, 10),
-                                "price_unit": round(so_tx.amount / rng.randint(1, 10), 2),
-                            },
-                        )
-                    ],
-                }
-                if pricelist_id:
-                    so_vals["pricelist_id"] = pricelist_id
+    # Print persona distribution summary
+    if partner_ids:
+        console.print(f"  [dim]{persona_engine.summary()}[/dim]")
 
-                client.create("sale.order", so_vals)
-                created_so += 1
-            except OdooError:
-                pass  # skip chains that fail due to missing config
-
-            progress.advance(task)
-
-    console.print(f"  [green]✓[/green] {created_so} sale orders")
+    console.print(
+        f"  [green]✓[/green] {created_so} sale orders "
+        f"({len(active_months)} months, seasonality: {industry})"
+    )
