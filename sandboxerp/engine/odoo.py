@@ -27,6 +27,20 @@ import xmlrpc.client
 from dataclasses import dataclass, field
 from typing import Any
 
+
+def _to_list(obj: Any) -> Any:
+    """Recursively convert tuples to lists for Odoo 17 XML-RPC compatibility.
+
+    Odoo 17 domain_combine_anies requires list items, not tuples.
+
+    :param obj: Any Python object.
+    :return: Same structure with all tuples converted to lists.
+    """
+    if isinstance(obj, (list, tuple)):
+        return [_to_list(i) for i in obj]
+    return obj
+
+
 # ─────────────────────────────────────────
 # Exceptions
 # ─────────────────────────────────────────
@@ -60,6 +74,7 @@ class OdooClient:
     :param port: Odoo HTTP port (default ``8069``).
     :param db: Database name.
     :param uid: Authenticated user ID (0 if not yet authenticated).
+    :param password: Odoo password used for XML-RPC calls (set by :meth:`authenticate`).
     :param _common: Proxy for the ``/xmlrpc/2/common`` endpoint.
     :param _models: Proxy for the ``/xmlrpc/2/object`` endpoint.
     """
@@ -68,6 +83,7 @@ class OdooClient:
     port: int
     db: str
     uid: int = 0
+    password: str = "admin"
     _common: Any = field(default=None, repr=False)
     _models: Any = field(default=None, repr=False)
 
@@ -133,7 +149,7 @@ class OdooClient:
     def authenticate(self, user: str = "admin", password: str = "admin") -> int:
         """Authenticate against the Odoo database.
 
-        Sets :attr:`uid` on success.
+        Sets :attr:`uid` and :attr:`password` on success.
 
         :param user: Odoo login.
         :param password: Odoo password.
@@ -151,6 +167,7 @@ class OdooClient:
             )
 
         self.uid = uid
+        self.password = password
         return uid
 
     # ------------------------------------------------------------------
@@ -202,7 +219,7 @@ class OdooClient:
         self._require_auth()
         try:
             return self._models.execute_kw(
-                self.db, self.uid, "admin", model, method, list(args), kwargs
+                self.db, self.uid, self.password, model, method, list(args), kwargs
             )
         except xmlrpc.client.Fault as exc:
             raise OdooError(
@@ -218,7 +235,7 @@ class OdooClient:
         :return: ID of the created record.
         :raises OdooError: On failure.
         """
-        return self.execute(model, "create", [values])
+        return self.execute(model, "create", values)
 
     def create_many(self, model: str, records: list[dict[str, Any]]) -> list[int]:
         """Create multiple records in a single call.
@@ -256,7 +273,7 @@ class OdooClient:
             kwargs["offset"] = offset
         if order:
             kwargs["order"] = order
-        return self.execute(model, "search", [domain], **kwargs)
+        return self.execute(model, "search", _to_list(domain), **kwargs)
 
     def search_read(
         self,
@@ -278,7 +295,7 @@ class OdooClient:
         kwargs: dict[str, Any] = {"fields": fields}
         if limit:
             kwargs["limit"] = limit
-        return self.execute(model, "search_read", [domain], **kwargs)
+        return self.execute(model, "search_read", _to_list(domain), **kwargs)
 
     def read(self, model: str, ids: list[int], fields: list[str]) -> list[dict]:
         """Read specific fields from records by ID.
@@ -300,7 +317,7 @@ class OdooClient:
         :return: ``True`` on success.
         :raises OdooError: On failure.
         """
-        return self.execute(model, "write", [ids, values])
+        return self.execute(model, "write", ids, values)
 
     def unlink(self, model: str, ids: list[int]) -> bool:
         """Delete records by ID.
@@ -330,7 +347,7 @@ class OdooClient:
         )
         if not ids:
             return  # already installed
-        self.execute("ir.module.module", "button_immediate_install", [ids])
+        self.execute("ir.module.module", "button_immediate_install", ids)
 
     def module_is_installed(self, module_name: str) -> bool:
         """Check whether a module is currently installed.
@@ -358,7 +375,7 @@ class OdooClient:
         self._require_auth()
         try:
             result = self._models.execute_kw(
-                self.db, self.uid, "admin",
+                self.db, self.uid, self.password,
                 "ir.model.data", "xmlid_to_res_id",
                 [xml_id], {}
             )
