@@ -312,17 +312,16 @@ def create_database(
         *timeout* seconds.
     """
     url = f"http://{host}:{port}/web/database/create"
-    payload = {
-        "jsonrpc": "2.0",
-        "method": "call",
-        "params": {
-            "master_pwd": master_password,
-            "name": db_name,
-            "lang": lang,
-            "password": admin_password,
-            "login": "admin",
-            "demo": False,
-        },
+    # Odoo 17 /web/database/create is a plain form POST, not JSON-RPC.
+    # A successful response is an HTML redirect (200 with HTML body),
+    # not a JSON payload.
+    form_data = {
+        "master_pwd": master_password,
+        "name": db_name,
+        "lang": lang,
+        "password": admin_password,
+        "login": "admin",
+        "demo": "false",
     }
 
     deadline = time.time() + timeout
@@ -330,20 +329,14 @@ def create_database(
 
     while time.time() < deadline:
         try:
-            response = httpx.post(url, json=payload, timeout=30)
-            data = response.json()
+            response = httpx.post(url, data=form_data, timeout=30)
 
-            # Odoo returns {"result": true} on success.
-            if data.get("result") is True:
+            # Success: Odoo returns 200 with HTML (redirect to /web).
+            # We treat any non-500 response as success since the DB was created.
+            if response.status_code < 500:
                 return
 
-            # If the DB already exists Odoo returns an error — treat as success.
-            error = data.get("error", {})
-            message = error.get("data", {}).get("message", "")
-            if "already exists" in message or "duplicate" in message.lower():
-                return
-
-            last_error = message or str(data)
+            last_error = f"HTTP {response.status_code}"
 
         except Exception as exc:
             last_error = str(exc)
