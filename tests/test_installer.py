@@ -12,6 +12,7 @@ instance or Docker environment is required.
 
 from __future__ import annotations
 
+from datetime import date
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -27,6 +28,7 @@ from sandboxerp.engine.installer import (
     install,
 )
 from sandboxerp.engine.odoo import OdooError
+from sandboxerp.engine.time_engine import ObservationWindow
 
 # ─────────────────────────────────────────
 # Fixtures
@@ -63,6 +65,12 @@ _INDUSTRY_PACK = {
     },
     "transactions": {"so_chains_by_profile": {"small": 3, "medium": 10}},
 }
+
+# Shared observation window for transaction tests.
+_WINDOW = ObservationWindow(
+    start=date(2024, 1, 1),
+    end=date(2024, 12, 31),
+)
 
 
 @pytest.fixture
@@ -188,8 +196,7 @@ class TestGeneratePartners:
         ids = _generate_partners(
             mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
         )
-        # small: 5 customers + 3 suppliers = 8
-        assert len(ids) == 8
+        assert len(ids) == 8  # small: 5 customers + 3 suppliers
 
     def test_returns_list_of_ints(self, mock_client):
         from faker import Faker
@@ -245,6 +252,7 @@ class TestGenerateTransactions:
             seed=42,
             partner_ids=[1, 2, 3],
             product_ids=[10, 11, 12],
+            window=_WINDOW,
         )
         assert mock_client.create.call_count >= 1
 
@@ -259,6 +267,7 @@ class TestGenerateTransactions:
             seed=42,
             partner_ids=[],
             product_ids=[10],
+            window=_WINDOW,
         )
         mock_client.create.assert_not_called()
 
@@ -273,6 +282,7 @@ class TestGenerateTransactions:
             seed=42,
             partner_ids=[1],
             product_ids=[],
+            window=_WINDOW,
         )
         mock_client.create.assert_not_called()
 
