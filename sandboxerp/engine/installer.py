@@ -124,8 +124,8 @@ def install(
 def _wait_for_xmlrpc(
     host: str,
     port: int,
-    timeout: int = 120,
-    interval: int = 3,
+    timeout: int = 300,
+    interval: int = 5,
 ) -> OdooClient:
     """Poll until the Odoo XML-RPC endpoint is accepting calls.
 
@@ -206,7 +206,9 @@ def _install_modules(
 def _configure_company(client: OdooClient, country_pack: dict) -> None:
     """Apply country pack settings to the main Odoo company.
 
-    Sets currency, country, language, and default tax.
+    Sets currency and country. Currency change is attempted separately
+    and silently ignored if Odoo rejects it (e.g. when journal entries
+    already exist after localisation module installation).
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
@@ -228,7 +230,19 @@ def _configure_company(client: OdooClient, country_pack: dict) -> None:
         values["currency_id"] = currency_id
 
     if values:
-        client.write("res.company", [1], values)
+        # Set country first — always safe.
+        country_vals = {k: v for k, v in values.items() if k != "currency_id"}
+        currency_vals = {k: v for k, v in values.items() if k == "currency_id"}
+
+        if country_vals:
+            client.write("res.company", [1], country_vals)
+
+        if currency_vals:
+            try:
+                client.write("res.company", [1], currency_vals)
+            except Exception:
+                pass  # Currency already set by localisation module
+
         console.print(
             f"  [dim]country={country_code} currency={currency_name}[/dim]"
         )
@@ -247,6 +261,11 @@ def _generate_partners(
     fake: Faker,
 ) -> list[int]:
     """Generate customer and supplier partner records.
+
+    VAT is formatted as required by Odoo with l10n_cl installed:
+    ``CL`` prefix + RUT digits without dots + hyphen (e.g. ``CL76086428-5``).
+    If Odoo rejects the VAT (e.g. too few digits), the partner is created
+    without it.
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
@@ -287,7 +306,8 @@ def _generate_partners(
     ) as progress:
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
-            vat = getattr(fake, person_rut_method, fake.ssn)()
+            raw_vat = getattr(fake, person_rut_method, fake.ssn)()
+            vat = "CL" + raw_vat.replace(".", "")
             record = {
                 "name": fake.name(),
                 "customer_rank": 1,
@@ -298,13 +318,18 @@ def _generate_partners(
                 "phone": fake.phone_number(),
                 "country_id": country_id,
             }
-            pid = client.create("res.partner", record)
+            try:
+                pid = client.create("res.partner", record)
+            except Exception:
+                record.pop("vat", None)
+                pid = client.create("res.partner", record)
             partner_ids.append(pid)
             progress.advance(task)
 
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
-            vat = getattr(fake, company_rut_method, fake.ssn)()
+            raw_vat = getattr(fake, company_rut_method, fake.ssn)()
+            vat = "CL" + raw_vat.replace(".", "")
             record = {
                 "name": fake.company(),
                 "customer_rank": 0,
@@ -315,7 +340,11 @@ def _generate_partners(
                 "phone": fake.phone_number(),
                 "country_id": country_id,
             }
-            pid = client.create("res.partner", record)
+            try:
+                pid = client.create("res.partner", record)
+            except Exception:
+                record.pop("vat", None)
+                pid = client.create("res.partner", record)
             partner_ids.append(pid)
             progress.advance(task)
 
@@ -407,7 +436,6 @@ def _months_in_window(window: ObservationWindow) -> list[int]:
     while current <= end_month:
         if current.month not in months:
             months.append(current.month)
-        # Advance one month
         if current.month == 12:
             current = date(current.year + 1, 1, 1)
         else:
@@ -499,7 +527,6 @@ def _generate_transactions(
             # prefer the year where the month falls inside the window.
             year = window.end.year if month <= window.end.month else window.start.year
 
-            # Build a month-scoped observation window for date assignment
             month_start = date(year, month, 1)
             if month == 12:
                 month_end = date(year, 12, 31)
@@ -530,8 +557,6 @@ def _generate_transactions(
                 persona_engine.enrich_chain(chain, partner_id=partner_id)
 
                 # ── Time Engine: assign coherent dates ────────────────
-                # payment_delay_extra from persona metadata is read
-                # automatically by assign_dates via _step_delay().
                 dated_chain = assign_dates(chain, window=month_window, rng=rng)
 
                 so_tx = next(
@@ -573,7 +598,6 @@ def _generate_transactions(
 
                 progress.advance(task)
 
-    # Print persona distribution summary
     if partner_ids:
         console.print(f"  [dim]{persona_engine.summary()}[/dim]")
 

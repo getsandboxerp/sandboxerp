@@ -169,11 +169,11 @@ class TestConfigureCompany:
     def test_writes_country_and_currency(self, mock_client):
         mock_client.search.return_value = [5]
         _configure_company(mock_client, _COUNTRY_PACK)
-        mock_client.write.assert_called_once()
-        _, args, _ = mock_client.write.mock_calls[0]
-        values = args[2]
-        assert "country_id" in values
-        assert "currency_id" in values
+        assert mock_client.write.call_count == 2
+        first_call_values = mock_client.write.mock_calls[0].args[2]
+        second_call_values = mock_client.write.mock_calls[1].args[2]
+        assert "country_id" in first_call_values
+        assert "currency_id" in second_call_values
 
     def test_skips_write_if_no_ids_found(self, mock_client):
         mock_client.search.return_value = []
