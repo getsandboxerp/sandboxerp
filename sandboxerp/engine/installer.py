@@ -89,6 +89,9 @@ def install(
     console.print("[bold]→[/bold] Installing modules...")
     _install_modules(client, country_pack, industry_pack)
 
+    console.print("[bold]→[/bold] Configuring language...")
+    _configure_language(client, country_pack)
+
     console.print("[bold]→[/bold] Configuring company...")
     _configure_company(client, country_pack)
 
@@ -196,6 +199,43 @@ def _install_modules(
             console.print(f"  [bold]↓[/bold] Installing {module}...")
             client.install_module(module)
             console.print(f"  [green]✓[/green] {module}")
+
+
+# ─────────────────────────────────────────
+# Language configuration
+# ─────────────────────────────────────────
+
+
+def _configure_language(client: OdooClient, country_pack: dict) -> None:
+    """Load and activate the locale defined by the country pack.
+
+    Attempts to load ``es_CL`` (or the locale declared in the pack).
+    Falls back to ``es_ES`` if the primary locale is not available in
+    Odoo. Assigns the active locale to the admin user so the interface
+    renders in the correct language.
+
+    :param client: Authenticated Odoo client.
+    :param country_pack: Loaded country pack dict.
+    """
+    locale = country_pack.get("meta", {}).get("locale", "es_CL")
+
+    # Ask Odoo to load the language (no-op if already loaded).
+    try:
+        client.execute("res.lang", "load_lang", locale)
+    except Exception:
+        pass
+
+    # Verify the language is active; fall back to es_ES if needed.
+    lang_ids = client.search("res.lang", [["code", "=", locale]])
+    if not lang_ids:
+        locale = "es_ES"
+        lang_ids = client.search("res.lang", [["code", "=", locale]])
+
+    if lang_ids:
+        client.write("res.users", [2], {"lang": locale})
+        console.print(f"  [dim]language={locale}[/dim]")
+    else:
+        console.print("  [dim]language=en_US (locale not found)[/dim]")
 
 
 # ─────────────────────────────────────────
