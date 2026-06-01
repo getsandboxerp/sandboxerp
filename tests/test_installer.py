@@ -20,6 +20,7 @@ import pytest
 from sandboxerp.engine.installer import (
     ODOO_DB,
     _configure_company,
+    _configure_language,
     _generate_partners,
     _generate_products,
     _generate_transactions,
@@ -328,3 +329,46 @@ class TestInstall:
                     profile="small",
                     seed=42,
                 )
+
+
+# ─────────────────────────────────────────
+# _configure_language
+# ─────────────────────────────────────────
+
+
+class TestConfigureLanguage:
+    def test_loads_and_assigns_locale(self, mock_client):
+        """Happy path: locale found, assigned to admin user."""
+        mock_client.search.return_value = [1]
+        _configure_language(mock_client, _COUNTRY_PACK)
+        mock_client.execute.assert_called_once_with(
+            "res.lang", "load_lang", "es_CL"
+        )
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_CL"}
+        )
+
+    def test_falls_back_to_es_ES_when_locale_not_found(self, mock_client):
+        """If es_CL is not available, falls back to es_ES."""
+        def search_side_effect(model, domain, **kwargs):
+            code = domain[0][2]
+            return [1] if code == "es_ES" else []
+
+        mock_client.search.side_effect = search_side_effect
+        _configure_language(mock_client, _COUNTRY_PACK)
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_ES"}
+        )
+
+    def test_no_write_when_no_locale_found(self, mock_client):
+        """If neither locale is available, write is not called."""
+        mock_client.search.return_value = []
+        _configure_language(mock_client, _COUNTRY_PACK)
+        mock_client.write.assert_not_called()
+
+    def test_load_lang_error_is_silenced(self, mock_client):
+        """If load_lang raises, the function continues without crashing."""
+        mock_client.execute.side_effect = Exception("already loaded")
+        mock_client.search.return_value = [1]
+        _configure_language(mock_client, _COUNTRY_PACK)
+        mock_client.write.assert_called_once()
