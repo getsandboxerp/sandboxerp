@@ -16,6 +16,10 @@ Rules enforced:
 - Each step occurs **after** its predecessor by a realistic delay.
 - Delays are randomised within industry-aware bounds so the dataset
   looks natural rather than mechanical.
+- If a transaction carries ``metadata["payment_delay_extra"]`` (injected
+  by the :mod:`~sandboxerp.engine.persona_engine`), that value is added
+  to the base delay for the ``customer_invoice`` step, producing
+  persona-consistent payment behaviour across the dataset.
 - All dates fall within a configurable **observation window** (default:
   the 12 months preceding the generation date).
 - No document date is in the future.
@@ -142,7 +146,8 @@ class DatedTransaction:
     :param ref: Human-readable reference (e.g. ``"SO/0001"``).
     :param amount: Monetary amount.
     :param parent_ref: Reference of the preceding transaction.
-    :param metadata: Arbitrary extra data.
+    :param metadata: Arbitrary extra data (may include
+        ``payment_delay_extra`` from the Persona Engine).
     :param date: Assigned document date.
     """
 
@@ -168,6 +173,26 @@ class DatedTransaction:
 # ─────────────────────────────────────────
 
 
+def _step_delay(tx, rng: random.Random) -> int:
+    """Compute the delay in days after transaction *tx*.
+
+    Uses the base delay from :data:`STEP_DELAYS` for the transaction
+    type, then adds ``metadata["payment_delay_extra"]`` if present.
+    This allows the :mod:`~sandboxerp.engine.persona_engine` to inject
+    persona-specific payment behaviour without modifying the core
+    delay table.
+
+    :param tx: Transaction object with ``type`` and ``metadata``
+        attributes.
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: Total delay in days (base + persona extra).
+    """
+    min_delay, max_delay = STEP_DELAYS.get(tx.type, STEP_DELAYS["_default"])
+    base_delay = rng.randint(min_delay, max_delay)
+    extra = int(tx.metadata.get("payment_delay_extra", 0)) if tx.metadata else 0
+    return base_delay + extra
+
+
 def assign_dates(
     chain: list,
     *,
@@ -178,7 +203,9 @@ def assign_dates(
 
     The first transaction in the chain gets a random date within *window*.
     Each subsequent transaction is dated *after* its predecessor by a
-    delay drawn from :data:`STEP_DELAYS`.
+    delay drawn from :data:`STEP_DELAYS`, plus any
+    ``payment_delay_extra`` stored in the transaction's metadata (set by
+    the :mod:`~sandboxerp.engine.persona_engine` for invoice steps).
 
     If a computed date would exceed ``window.end`` the chain is
     compressed: the overflow is distributed backwards so all dates
@@ -193,9 +220,11 @@ def assign_dates(
     if not chain:
         return []
 
-    # Estimate total minimum span needed for the chain
+    # Estimate total minimum span needed for the chain, including any
+    # persona-injected extra delays already present in metadata.
     min_span = sum(
         STEP_DELAYS.get(tx.type, STEP_DELAYS["_default"])[0]
+        + int(tx.metadata.get("payment_delay_extra", 0) if tx.metadata else 0)
         for tx in chain[:-1]
     )
 
@@ -222,9 +251,7 @@ def assign_dates(
         )
 
         if i < len(chain) - 1:
-            next_type = chain[i].type
-            min_delay, max_delay = STEP_DELAYS.get(next_type, STEP_DELAYS["_default"])
-            delay = rng.randint(min_delay, max_delay)
+            delay = _step_delay(chain[i], rng)
             current_date = current_date + timedelta(days=delay)
 
     return dated
