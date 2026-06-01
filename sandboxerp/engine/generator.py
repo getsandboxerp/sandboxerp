@@ -12,7 +12,8 @@ Orchestrates the full generation pipeline:
 4. Pull Odoo + Postgres Docker images (if not cached).
 5. Write ``docker-compose.yml`` and bring up containers.
 6. Wait for Odoo HTTP port to respond.
-7. Hand off to :mod:`sandboxerp.engine.installer` for module installation
+7. Create the sandbox database via the Odoo HTTP Database Manager API.
+8. Hand off to :mod:`sandboxerp.engine.installer` for module installation
    and synthetic data generation.
 
 :author: Hector Colina / Team360 <https://team360.cl>
@@ -26,6 +27,7 @@ from rich.console import Console
 
 from sandboxerp.engine.docker import (
     DEFAULT_COMPOSE_DIR,
+    create_database,
     destroy_environment,
     ensure_images,
     environment_exists,
@@ -37,8 +39,6 @@ from sandboxerp.engine.docker import (
 from sandboxerp.engine.installer import install
 
 console = Console()
-
-# Default directory where the compose file is written.
 
 # Supported values for validation.
 SUPPORTED_COUNTRIES = {"cl", "mx", "ar", "co", "pe"}
@@ -91,14 +91,16 @@ def generate_environment(
     """Generate and launch a complete Odoo sandbox environment.
 
     Steps:
+
     1. Validate options.
     2. Connect to Docker.
     3. Optionally destroy an existing environment (if *force* is set).
     4. Pull required images.
     5. Write ``docker-compose.yml``.
     6. Start containers via docker-compose.
-    7. Wait for Odoo to become available on its HTTP port.
-    8. Install modules and generate synthetic data via the installer.
+    7. Wait for Odoo to accept HTTP connections.
+    8. Create the sandbox database via the Odoo HTTP Database Manager API.
+    9. Install modules and generate synthetic data via the installer.
 
     :param country: ISO country code (e.g. ``cl``).
     :param industry: Industry pack (e.g. ``retail``).
@@ -154,12 +156,20 @@ def generate_environment(
 
     console.print("[bold]→[/bold] Waiting for Odoo to be ready...")
     ready = wait_for_odoo(bind=bind, port=port)
-
     if not ready:
         console.print(
-            "[yellow]⚠[/yellow]  Odoo hasn't responded yet — "
-            "proceeding anyway. Check logs if installation fails."
+            "[yellow]⚠[/yellow]  Odoo HTTP port not yet responding — "
+            "proceeding to database creation anyway."
         )
+
+    # ── Database initialisation ──────────────────────────────────────
+    # Must happen before XML-RPC calls. Odoo 17 does not auto-create the
+    # database via the entrypoint flag in compose; we use the HTTP
+    # Database Manager API instead.
+    odoo_host = "127.0.0.1" if bind == "0.0.0.0" else bind
+    console.print("[bold]→[/bold] Creating sandbox database...")
+    create_database(host=odoo_host, port=port)
+    console.print("  [green]✓[/green] Database ready")
 
     # ── Installer phase ──────────────────────────────────────────────
     install(
@@ -167,7 +177,7 @@ def generate_environment(
         industry=industry,
         profile=profile,
         seed=seed,
-        host="127.0.0.1" if bind == "0.0.0.0" else bind,
+        host=odoo_host,
         port=port,
     )
 

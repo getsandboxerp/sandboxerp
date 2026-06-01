@@ -1,4 +1,7 @@
 """
+sandboxerp.engine.docker
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Docker engine for SandboxERP.
 
 Handles all Docker interactions: verification, image pulling,
@@ -16,6 +19,7 @@ from typing import Optional
 
 import docker
 import docker.errors
+import httpx
 from docker import DockerClient
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -33,6 +37,9 @@ LABEL_VALUE = "true"
 DEFAULT_ODOO_PORT = 8069
 DEFAULT_BIND = "127.0.0.1"
 DEFAULT_COMPOSE_DIR = Path.home() / ".sandboxerp" / "env"
+
+# Odoo master password for database manager (default in fresh installs).
+ODOO_MASTER_PASSWORD = "admin"
 
 
 # ─────────────────────────────────────────
@@ -188,6 +195,11 @@ def generate_compose(
     service and an Odoo service wired together, labelled with
     ``sandboxerp=true`` for lifecycle management.
 
+    Database initialisation is handled by :func:`create_database` after
+    the containers are up, not via the Odoo entrypoint flag. This avoids
+    a known Odoo 17 issue where ``--init base`` passed through ``command``
+    in compose is silently ignored.
+
     :param project_name: Docker Compose project name (used as prefix).
     :param country: ISO country code (e.g. ``cl``, ``mx``).
     :param industry: Industry pack name (e.g. ``retail``).
@@ -261,6 +273,88 @@ def write_compose(
     compose_path = output_dir / "docker-compose.yml"
     compose_path.write_text(compose_yaml, encoding="utf-8")
     return compose_path
+
+
+# ─────────────────────────────────────────
+# Database initialisation
+# ─────────────────────────────────────────
+
+
+def create_database(
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_ODOO_PORT,
+    db_name: str = "sandbox",
+    admin_password: str = "admin",
+    master_password: str = ODOO_MASTER_PASSWORD,
+    lang: str = "en_US",
+    timeout: int = 300,
+    interval: int = 5,
+) -> None:
+    """Create the Odoo sandbox database via the HTTP Database Manager API.
+
+    Polls ``/web/database/create`` until the database is successfully
+    created or *timeout* seconds have elapsed. This is the recommended
+    approach for Odoo 17, where passing ``--init base`` via the Docker
+    ``command`` directive is silently ignored.
+
+    The call is idempotent: if the database already exists Odoo returns
+    an error which this function silently ignores.
+
+    :param host: Odoo host (default ``"127.0.0.1"``).
+    :param port: Odoo HTTP port (default ``8069``).
+    :param db_name: Name of the database to create (default ``"sandbox"``).
+    :param admin_password: Admin user password for the new database.
+    :param master_password: Odoo master password for the database manager.
+    :param lang: Language code for the new database (default ``"en_US"``).
+    :param timeout: Maximum seconds to wait (default ``300``).
+    :param interval: Seconds between retries (default ``5``).
+    :raises RuntimeError: If the database could not be created within
+        *timeout* seconds.
+    """
+    url = f"http://{host}:{port}/web/database/create"
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "master_pwd": master_password,
+            "name": db_name,
+            "lang": lang,
+            "password": admin_password,
+            "login": "admin",
+            "demo": False,
+        },
+    }
+
+    deadline = time.time() + timeout
+    last_error: str = ""
+
+    while time.time() < deadline:
+        try:
+            response = httpx.post(url, json=payload, timeout=30)
+            data = response.json()
+
+            # Odoo returns {"result": true} on success.
+            if data.get("result") is True:
+                return
+
+            # If the DB already exists Odoo returns an error — treat as success.
+            error = data.get("error", {})
+            message = error.get("data", {}).get("message", "")
+            if "already exists" in message or "duplicate" in message.lower():
+                return
+
+            last_error = message or str(data)
+
+        except Exception as exc:
+            last_error = str(exc)
+
+        time.sleep(interval)
+
+    raise RuntimeError(
+        f"Could not create Odoo database '{db_name}' within {timeout}s. "
+        f"Last error: {last_error}. "
+        "Check: docker compose logs odoo"
+    )
 
 
 # ─────────────────────────────────────────

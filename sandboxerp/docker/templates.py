@@ -27,6 +27,7 @@ class ServiceTemplate:
     :param volumes: Volume mount strings (named or bind-mount).
     :param depends_on: Names of services this service depends on.
     :param labels: Docker labels to attach to the container.
+    :param command: Optional command to override the image default entrypoint.
     """
 
     name: str
@@ -36,6 +37,7 @@ class ServiceTemplate:
     volumes: list[str] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
     labels: dict[str, str] = field(default_factory=dict)
+    command: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialise this service to a Compose-compatible dict.
@@ -53,6 +55,8 @@ class ServiceTemplate:
             svc["volumes"] = self.volumes
         if self.labels:
             svc["labels"] = self.labels
+        if self.command is not None:
+            svc["command"] = self.command
         return svc
 
 
@@ -104,6 +108,12 @@ def build_odoo_template(
     postgres_image: str = "postgres:15",
 ) -> ComposeTemplate:
     """Build the standard Odoo + PostgreSQL Compose template.
+
+    Database initialisation is handled by
+    :func:`sandboxerp.engine.docker.create_database` after the containers
+    are up. The Odoo service starts without ``--init base`` to avoid a
+    known Odoo 17 issue where that flag is silently ignored when passed
+    via the Docker ``command`` directive.
 
     :param country: ISO country code label (stored as a container label).
     :param industry: Industry pack label.

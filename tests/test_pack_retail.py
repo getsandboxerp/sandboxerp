@@ -86,7 +86,7 @@ class TestRetailProducts:
     REQUIRED_CATEGORIES = ["ELEC", "ROPA", "HOGAR", "ALIM", "DEPOR", "BELLEZA"]
 
     def test_product_type_is_storable(self, retail):
-        assert retail["products"]["type"] == "storable"
+        assert retail["products"]["type"] == "product"
 
     def test_cost_method(self, retail):
         assert retail["products"]["cost_method"] == "average_price"

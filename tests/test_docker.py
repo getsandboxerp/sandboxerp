@@ -21,6 +21,7 @@ from sandboxerp.docker.templates import (
 from sandboxerp.engine.docker import (
     LABEL_KEY,
     LABEL_VALUE,
+    create_database,
     generate_compose,
     image_exists,
     is_docker_running,
@@ -238,3 +239,77 @@ class TestBuildOdooTemplate:
         rendered = tmpl.render()
         assert "0.0.0.0" in rendered
         assert "8888" in rendered
+
+
+# ─────────────────────────────────────────
+# create_database tests
+# ─────────────────────────────────────────
+
+
+class TestCreateDatabase:
+    """Tests for create_database() — all HTTP calls are mocked."""
+
+    def test_returns_on_success(self):
+        """A result=True response resolves immediately."""
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value.json.return_value = {"result": True}
+            create_database(timeout=10, interval=0)
+            mock_post.assert_called_once()
+
+    def test_returns_if_db_already_exists(self):
+        """An 'already exists' error is treated as success."""
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value.json.return_value = {
+                "error": {
+                    "data": {"message": "database already exists"}
+                }
+            }
+            create_database(timeout=10, interval=0)
+            mock_post.assert_called_once()
+
+    def test_retries_on_transient_error(self):
+        """Network errors trigger retries until success."""
+        responses = [
+            Exception("connection refused"),
+            Exception("connection refused"),
+            MagicMock(**{"json.return_value": {"result": True}}),
+        ]
+        call_count = 0
+
+        def side_effect(*args, **kwargs):
+            nonlocal call_count
+            r = responses[call_count]
+            call_count += 1
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+        with patch("sandboxerp.engine.docker.httpx.post", side_effect=side_effect):
+            create_database(timeout=30, interval=0)
+
+        assert call_count == 3
+
+    def test_raises_on_timeout(self):
+        """RuntimeError is raised if the database is never created."""
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value.json.return_value = {
+                "error": {"data": {"message": "some unrecoverable error"}}
+            }
+            with pytest.raises(RuntimeError, match="Could not create Odoo database"):
+                create_database(timeout=0, interval=0)
+
+    def test_posts_to_correct_url(self):
+        """The request targets /web/database/create on the given host/port."""
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value.json.return_value = {"result": True}
+            create_database(host="10.0.0.1", port=8080, timeout=10, interval=0)
+            url = mock_post.call_args[0][0]
+            assert url == "http://10.0.0.1:8080/web/database/create"
+
+    def test_payload_contains_db_name(self):
+        """The JSON payload includes the requested database name."""
+        with patch("sandboxerp.engine.docker.httpx.post") as mock_post:
+            mock_post.return_value.json.return_value = {"result": True}
+            create_database(db_name="mydb", timeout=10, interval=0)
+            payload = mock_post.call_args[1]["json"]
+            assert payload["params"]["name"] == "mydb"
