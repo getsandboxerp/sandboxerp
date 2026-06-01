@@ -255,6 +255,7 @@ class OdooClient:
         limit: int = 0,
         offset: int = 0,
         order: str = "",
+        context: dict[str, Any] | None = None,
     ) -> list[int]:
         """Search records and return their IDs.
 
@@ -263,6 +264,7 @@ class OdooClient:
         :param limit: Maximum number of records (0 = no limit).
         :param offset: Number of records to skip.
         :param order: Sort expression (e.g. ``"name asc"``).
+        :param context: Optional Odoo context dict (e.g. ``{"active_test": False}``).
         :return: List of matching record IDs.
         :raises OdooError: On failure.
         """
@@ -273,6 +275,8 @@ class OdooClient:
             kwargs["offset"] = offset
         if order:
             kwargs["order"] = order
+        if context:
+            kwargs["context"] = context
         return self.execute(model, "search", _to_list(domain), **kwargs)
 
     def search_read(
@@ -282,6 +286,7 @@ class OdooClient:
         fields: list[str],
         *,
         limit: int = 0,
+        context: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Search records and return field values in one call.
 
@@ -289,12 +294,15 @@ class OdooClient:
         :param domain: Odoo domain expression.
         :param fields: List of field names to return.
         :param limit: Maximum number of records (0 = no limit).
+        :param context: Optional Odoo context dict (e.g. ``{"active_test": False}``).
         :return: List of dicts with requested field values.
         :raises OdooError: On failure.
         """
         kwargs: dict[str, Any] = {"fields": fields}
         if limit:
             kwargs["limit"] = limit
+        if context:
+            kwargs["context"] = context
         return self.execute(model, "search_read", _to_list(domain), **kwargs)
 
     def read(self, model: str, ids: list[int], fields: list[str]) -> list[dict]:

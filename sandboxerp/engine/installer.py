@@ -212,33 +212,58 @@ def _install_modules(
 def _configure_language(client: OdooClient, country_pack: dict) -> None:
     """Load and activate the locale defined by the country pack.
 
-    Attempts to load ``es_CL`` (or the locale declared in the pack).
-    Falls back to ``es_ES`` if the primary locale is not available in
-    Odoo. Assigns the active locale to the admin user so the interface
-    renders in the correct language.
+    Uses the ``base.language.install`` wizard to activate the language,
+    which is the correct mechanism in Odoo 17. Languages exist in
+    ``res.lang`` but are inactive by default; the wizard activates them
+    and loads their translations.
+
+    Falls back to ``es_ES`` if the primary locale is not available.
+    Assigns the active locale to the admin user so the interface renders
+    in the correct language.
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
     """
     locale = country_pack.get("meta", {}).get("locale", "es_CL")
 
-    # Ask Odoo to load the language (no-op if already loaded).
-    try:
-        client.execute("res.lang", "load_lang", locale)
-    except Exception:
-        pass
+    # Find the language record (including inactive ones).
+    lang_ids = client.search(
+        "res.lang",
+        [["code", "=", locale]],
+        context={"active_test": False},
+    )
 
-    # Verify the language is active; fall back to es_ES if needed.
-    lang_ids = client.search("res.lang", [["code", "=", locale]])
     if not lang_ids:
+        # Fallback to es_ES
         locale = "es_ES"
-        lang_ids = client.search("res.lang", [["code", "=", locale]])
+        lang_ids = client.search(
+            "res.lang",
+            [["code", "=", locale]],
+            context={"active_test": False},
+        )
 
-    if lang_ids:
-        client.write("res.users", [2], {"lang": locale})
-        console.print(f"  [dim]language={locale}[/dim]")
-    else:
-        console.print("  [dim]language=en_US (locale not found)[/dim]")
+    if not lang_ids:
+        console.print("  [dim]language=en_US (locale not available)[/dim]")
+        return
+
+    lang_id = lang_ids[0]
+
+    # Check if already active — skip wizard if so.
+    active = client.search("res.lang", [["id", "=", lang_id]])
+    if not active:
+        # Activate via wizard
+        try:
+            wizard_id = client.create(
+                "base.language.install",
+                {"lang_ids": [[4, lang_id]], "overwrite": False},
+            )
+            client.execute("base.language.install", "lang_install", [wizard_id])
+        except Exception:
+            pass
+
+    # Assign to admin user
+    client.write("res.users", [2], {"lang": locale})
+    console.print(f"  [dim]language={locale}[/dim]")
 
 
 # ─────────────────────────────────────────

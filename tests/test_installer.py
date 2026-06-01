@@ -338,12 +338,35 @@ class TestInstall:
 
 
 class TestConfigureLanguage:
-    def test_loads_and_assigns_locale(self, mock_client):
-        """Happy path: locale found, assigned to admin user."""
-        mock_client.search.return_value = [1]
+    def test_assigns_locale_when_already_active(self, mock_client):
+        """If locale is already active, wizard is skipped and lang assigned."""
+        # First search (active_test=False) finds it, second search (active) also finds it
+        mock_client.search.return_value = [70]
+        mock_client.create.return_value = 1
         _configure_language(mock_client, _COUNTRY_PACK)
+        # wizard not invoked — lang already active
+        mock_client.execute.assert_not_called()
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_CL"}
+        )
+
+    def test_installs_via_wizard_when_inactive(self, mock_client):
+        """If locale exists but inactive, wizard is created and executed."""
+        call_count = 0
+
+        def search_side_effect(model, domain, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return [70]   # found with active_test=False
+            return []          # inactive (not found without active_test)
+
+        mock_client.search.side_effect = search_side_effect
+        mock_client.create.return_value = 1
+        _configure_language(mock_client, _COUNTRY_PACK)
+        mock_client.create.assert_called_once()
         mock_client.execute.assert_called_once_with(
-            "res.lang", "load_lang", "es_CL"
+            "base.language.install", "lang_install", [1]
         )
         mock_client.write.assert_called_once_with(
             "res.users", [2], {"lang": "es_CL"}
@@ -351,11 +374,20 @@ class TestConfigureLanguage:
 
     def test_falls_back_to_es_ES_when_locale_not_found(self, mock_client):
         """If es_CL is not available, falls back to es_ES."""
+        call_count = 0
+
         def search_side_effect(model, domain, **kwargs):
+            nonlocal call_count
+            call_count += 1
             code = domain[0][2]
-            return [1] if code == "es_ES" else []
+            if code == "es_CL":
+                return []
+            if code == "es_ES":
+                return [82]
+            return [82]  # active check for es_ES
 
         mock_client.search.side_effect = search_side_effect
+        mock_client.create.return_value = 1
         _configure_language(mock_client, _COUNTRY_PACK)
         mock_client.write.assert_called_once_with(
             "res.users", [2], {"lang": "es_ES"}
@@ -367,12 +399,23 @@ class TestConfigureLanguage:
         _configure_language(mock_client, _COUNTRY_PACK)
         mock_client.write.assert_not_called()
 
-    def test_load_lang_error_is_silenced(self, mock_client):
-        """If load_lang raises, the function continues without crashing."""
-        mock_client.execute.side_effect = Exception("already loaded")
-        mock_client.search.return_value = [1]
+    def test_wizard_error_is_silenced(self, mock_client):
+        """If wizard raises, the function continues and still assigns lang."""
+        call_count = 0
+
+        def search_side_effect(model, domain, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return [70]
+            return []
+
+        mock_client.search.side_effect = search_side_effect
+        mock_client.create.side_effect = Exception("wizard failed")
         _configure_language(mock_client, _COUNTRY_PACK)
-        mock_client.write.assert_called_once()
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_CL"}
+        )
 
 
 # ─────────────────────────────────────────
