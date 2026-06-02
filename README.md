@@ -43,19 +43,6 @@ sandbox generate --country cl --industry retail --profile small --seed 42
 
 ---
 
-## Quickstart
-
-**Requirements:** Python 3.10+, Docker
-
-```bash
-pip install sandboxerp
-
-sandbox generate --country cl --industry retail --profile small --seed 42
-# ✓ Odoo ready at http://localhost:8069 — admin/admin
-```
-
----
-
 ## CLI Reference
 
 ```bash
