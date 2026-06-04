@@ -240,6 +240,7 @@ services:
       HOST: db
       USER: odoo
       PASSWORD: odoo
+    command: -- -i base --database sandbox --without-demo all
     volumes:
       - odoo_data:/var/lib/odoo
     labels:
@@ -437,4 +438,61 @@ def wait_for_odoo(
         except OSError:
             time.sleep(2)
 
+    return False
+
+
+def wait_for_db_init(
+    bind: str = DEFAULT_BIND,
+    port: int = DEFAULT_ODOO_PORT,
+    timeout: int = 300,
+    interval: int = 5,
+) -> bool:
+    """Poll until Odoo has fully initialized the sandbox database.
+
+    Odoo initializes the database via -i base passed as a command
+    argument in the compose file. This function polls
+    /web/database/manager until it returns HTTP 200, indicating
+    the database schema is ready for XML-RPC calls.
+
+    Fixes: https://github.com/getsandboxerp/sandboxerp/issues/34
+
+    :param bind: Host interface where Odoo is bound.
+    :param port: Host port for Odoo.
+    :param timeout: Maximum seconds to wait (default 300).
+    :param interval: Seconds between retries (default 5).
+    :return: True if the database became ready within timeout seconds.
+    """
+    host = bind if bind != "0.0.0.0" else "127.0.0.1"
+    url = f"http://{host}:{port}/web/database/manager"
+    deadline = time.time() + timeout
+
+    while time.time() < deadline:
+        try:
+            response = httpx.get(url, timeout=10)
+            if response.status_code == 200:
+                return True
+        except Exception:
+            pass
+        time.sleep(interval)
+
+    return False
+
+
+def wait_for_db_init(
+    bind: str = DEFAULT_BIND,
+    port: int = DEFAULT_ODOO_PORT,
+    timeout: int = 300,
+    interval: int = 5,
+) -> bool:
+    host = bind if bind != "0.0.0.0" else "127.0.0.1"
+    url = f"http://{host}:{port}/web/database/manager"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            response = httpx.get(url, timeout=10)
+            if response.status_code == 200:
+                return True
+        except Exception:
+            pass
+        time.sleep(interval)
     return False

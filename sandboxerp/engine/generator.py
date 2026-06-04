@@ -27,12 +27,12 @@ from rich.console import Console
 
 from sandboxerp.engine.docker import (
     DEFAULT_COMPOSE_DIR,
-    create_database,
     destroy_environment,
     ensure_images,
     environment_exists,
     generate_compose,
     get_client,
+    wait_for_db_init,
     wait_for_odoo,
     write_compose,
 )
@@ -163,12 +163,18 @@ def generate_environment(
         )
 
     # ── Database initialisation ──────────────────────────────────────
-    # Must happen before XML-RPC calls. Odoo 17 does not auto-create the
-    # database via the entrypoint flag in compose; we use the HTTP
-    # Database Manager API instead.
+    # Odoo initializes the database via `-i base --database sandbox`
+    # passed as command in the compose file. We wait for the database
+    # manager to return HTTP 200 before proceeding with XML-RPC calls.
+    # Fixes: https://github.com/getsandboxerp/sandboxerp/issues/34
     odoo_host = "127.0.0.1" if bind == "0.0.0.0" else bind
     console.print("[bold]→[/bold] Creating sandbox database...")
-    create_database(host=odoo_host, port=port)
+    ready = wait_for_db_init(bind=bind, port=port)
+    if not ready:
+        raise RuntimeError(
+            "Odoo database initialization timed out after 300s. "
+            "Check: docker compose logs odoo"
+        )
     console.print("  [green]✓[/green] Database ready")
 
     # ── Installer phase ──────────────────────────────────────────────
