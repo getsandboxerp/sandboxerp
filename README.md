@@ -46,25 +46,7 @@ If you need to install or upgrade Python, download it from [python.org](https://
 
 pip is included with Python 3.10+. Verify it is available:
 
-```bash
-pip --version
-```
-
-If it is missing:
-
-**macOS / Linux:**
-```bash
-curl -sS https://bootstrap.pypa.io/get-pip.py | python
-```
-
-**Windows:**
-```bash
-python -m ensurepip --upgrade
-```
-
-### Docker and Docker Compose v2
-
-SandboxERP uses Docker to run Odoo and PostgreSQL — no manual installation of either is required.
+## CLI Reference
 
 **macOS / Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), which includes Docker Compose v2.
 
