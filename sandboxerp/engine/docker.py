@@ -400,6 +400,17 @@ def destroy_environment(client: DockerClient, *, force: bool = False) -> None:
     for container in containers:
         container.remove(v=True, force=force)
 
+    # Remove named volumes — docker-compose prefixes them with the directory
+    # name ("env_"), so they are not removed by container.remove(v=True).
+    # Fixes: https://github.com/getsandboxerp/sandboxerp/issues/31
+    volume_names = ["env_db_data", "env_odoo_data"]
+    for vol_name in volume_names:
+        try:
+            vol = client.volumes.get(vol_name)
+            vol.remove(force=True)
+        except Exception:
+            pass  # volume already gone or never created
+
 
 def wait_for_odoo(
     bind: str = DEFAULT_BIND,
