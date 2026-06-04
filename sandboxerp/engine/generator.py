@@ -84,7 +84,7 @@ def generate_environment(
     seed: int,
     bind: str = "127.0.0.1",
     port: int = 8069,
-    odoo_version: str = "17",
+    odoo_version: str = "17.0-20250218",
     compose_dir: Path = DEFAULT_COMPOSE_DIR,
     force: bool = False,
 ) -> None:

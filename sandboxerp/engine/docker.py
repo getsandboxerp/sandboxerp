@@ -31,6 +31,7 @@ console = Console()
 # ─────────────────────────────────────────
 
 ODOO_IMAGE = "odoo:{version}"
+ODOO_DEFAULT_VERSION = "17.0-20250218"  # pinned — update deliberately, see #36
 POSTGRES_IMAGE = "postgres:15"
 LABEL_KEY = "sandboxerp"
 LABEL_VALUE = "true"
@@ -119,7 +120,7 @@ def pull_image(client: DockerClient, image: str) -> None:
     console.print(f"  [green]✓[/green] {image} ready")
 
 
-def ensure_images(client: DockerClient, odoo_version: str = "17") -> None:
+def ensure_images(client: DockerClient, odoo_version: str = ODOO_DEFAULT_VERSION) -> None:
     """Ensure Odoo and PostgreSQL images are available locally.
 
     Pulls any missing image before environment generation.
@@ -187,7 +188,7 @@ def generate_compose(
     seed: int,
     bind: str = DEFAULT_BIND,
     port: int = DEFAULT_ODOO_PORT,
-    odoo_version: str = "17",
+    odoo_version: str = ODOO_DEFAULT_VERSION,
 ) -> str:
     """Generate a docker-compose YAML string for an Odoo environment.
 
