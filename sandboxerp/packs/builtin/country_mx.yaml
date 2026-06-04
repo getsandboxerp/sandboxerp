@@ -1,0 +1,449 @@
+# Country Pack — Mexico
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: mx
+  name: Mexico
+  locale: es_MX          # Faker locale for names, addresses, etc.
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_mx            # base: chart of accounts SAT, taxes, fiscal positions
+      - l10n_mx_edi        # electronic invoicing (CFDI 4.0)
+      - l10n_mx_reports    # reportes obligatorios SAT (DIOT, etc.)
+  chart_of_accounts: l10n_mx
+  currency: MXN
+  language: es_MX
+  country_code: MX
+  post_install:
+    - set_currency: MXN
+    - set_language: es_MX
+    - set_country: MX
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: IVA
+  tax_rate: 0.16
+  tax_account: IVA Trasladado
+  id_label: RFC
+  id_format: "AAAA######XXX"        # 12 chars moral / 13 chars física (letras+fecha+homoclave)
+  faker_person_id: rfc               # Faker es_MX method — fake.rfc(natural=True)
+  faker_company_id: rfc              # Faker es_MX method — fake.rfc(natural=False)
+  sat_environment: test              # 'test' for sandbox, 'production' for live
+
+# ─────────────────────────────────────────
+# taxpayer_types  (regímenes fiscales SAT — CFDI 4.0)
+# ─────────────────────────────────────────
+taxpayer_types:
+  - code: "601"
+    label: General de Ley Personas Morales
+    description: Empresas que tributan en régimen general
+    odoo_field: l10n_mx_edi_fiscal_regime
+    default: true
+  - code: "612"
+    label: Personas Físicas con Actividades Empresariales y Profesionales
+    description: Persona física con actividad empresarial o profesional
+    odoo_field: l10n_mx_edi_fiscal_regime
+  - code: "626"
+    label: Régimen Simplificado de Confianza
+    description: RESICO — personas físicas con ingresos hasta 3.5 MDP anuales
+    odoo_field: l10n_mx_edi_fiscal_regime
+  - code: "616"
+    label: Sin Obligaciones Fiscales
+    description: Consumidor final sin actividad comercial registrada
+    odoo_field: l10n_mx_edi_fiscal_regime
+
+# ─────────────────────────────────────────
+# document_types  (tipos de CFDI)
+# ─────────────────────────────────────────
+document_types:
+  - code: I
+    name: Ingreso
+    short: factura
+    affects_vat: true
+    b2b: true
+    b2c: true
+    default_sale: true
+  - code: E
+    name: Egreso
+    short: nota_credito
+    affects_vat: true
+    b2b: true
+    b2c: true
+  - code: P
+    name: Pago
+    short: complemento_pago
+    affects_vat: false
+    b2b: true
+    b2c: false
+  - code: T
+    name: Traslado
+    short: carta_porte
+    affects_vat: false
+    b2b: true
+    b2c: false
+
+# ─────────────────────────────────────────
+# banks  (principales bancos México — CNBV)
+# ─────────────────────────────────────────
+banks:
+  - code: "006"
+    name: BANCOMEXT
+    short: Bancomext
+    swift: BEMXMXMM
+  - code: "009"
+    name: BANOBRAS
+    short: Banobras
+    swift: BNOBMXMM
+  - code: "021"
+    name: HSBC México
+    short: HSBC
+    swift: BIMEMXMM
+  - code: "030"
+    name: Bajío
+    short: Bajío
+    swift: BCBAMXMM
+  - code: "036"
+    name: INBURSA
+    short: Inbursa
+    swift: INBUMXMM
+  - code: "040"
+    name: INTERACCIONES
+    short: Interacciones
+    swift: INTAMXMM
+  - code: "042"
+    name: MIFEL
+    short: Mifel
+    swift: MIFLMXMM
+  - code: "044"
+    name: SCOTIABANK
+    short: Scotiabank
+    swift: MBCOMXMM
+  - code: "058"
+    name: BANREGIO
+    short: Banregio
+    swift: BARQMXMM
+  - code: "059"
+    name: INVEX
+    short: Invex
+    swift: INVEMXMM
+  - code: "060"
+    name: BANSI
+    short: Bansi
+    swift: BANSIMXM
+  - code: "062"
+    name: AFIRME
+    short: Afirme
+    swift: AFIRMXMM
+  - code: "072"
+    name: BANORTE
+    short: Banorte
+    swift: MENOMXMT
+  - code: "102"
+    name: ABN AMRO
+    short: ABN AMRO
+    swift: ABNAMXMM
+  - code: "106"
+    name: BAMSA
+    short: BAMSA
+    swift: MULTMXMM
+  - code: "110"
+    name: CITIBANAMEX
+    short: Banamex
+    swift: BNMXMXMM
+  - code: "112"
+    name: BANSUDESTE
+    short: Bansudeste
+    swift: BSUDMXMM
+  - code: "113"
+    name: VE POR MAS
+    short: Ve por Más
+    swift: VEMXMXMM
+  - code: "126"
+    name: SANTANDER
+    short: Santander
+    swift: BMSXMXMM
+  - code: "127"
+    name: AZTECA
+    short: Azteca
+    swift: BBAZMXMM
+  - code: "128"
+    name: AUTOFIN
+    short: Autofin
+    swift: AUFIMXMM
+  - code: "129"
+    name: BARCLAYS
+    short: Barclays
+    swift: BARCMXMM
+  - code: "130"
+    name: COMPARTAMOS
+    short: Compartamos
+    swift: COMPMXMM
+  - code: "132"
+    name: MULTIVA
+    short: Multiva
+    swift: MULTMXMX
+  - code: "133"
+    name: ACTINVER
+    short: Actinver
+    swift: ACTTMXMM
+  - code: "134"
+    name: WALMART
+    short: Walmart
+    swift: WALMXMM0
+  - code: "136"
+    name: INTERCAM BANCO
+    short: Intercam
+    swift: ICBMMXMM
+  - code: "137"
+    name: BANCOPPEL
+    short: BanCoppel
+    swift: BCPPMXMM
+  - code: "138"
+    name: ABC CAPITAL
+    short: ABC Capital
+    swift: ABCCMXMM
+  - code: "141"
+    name: VOLKSWAGEN
+    short: VW Bank
+    swift: VWBMMXMM
+  - code: "143"
+    name: CIBanco
+    short: CIBanco
+    swift: CIBCMXMM
+  - code: "145"
+    name: BBASE
+    short: Bbase
+    swift: BBASEMXM
+  - code: "147"
+    name: BANKAOOL
+    short: Bankaool
+    swift: BKAOMXMM
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{street} {number}, {colonia}, {city}, {state}, {zip}"
+  street_suffixes:
+    - Avenida
+    - Calle
+    - Boulevard
+    - Calzada
+    - Privada
+    - Cerrada
+    - Periférico
+    - Circuito
+  municipalities_by_state:
+    CDMX:
+      - Benito Juárez
+      - Cuauhtémoc
+      - Miguel Hidalgo
+      - Coyoacán
+      - Iztapalapa
+      - Tlalpan
+      - Xochimilco
+      - Azcapotzalco
+    JAL:
+      - Guadalajara
+      - Zapopan
+      - Tlaquepaque
+      - Tonalá
+      - Tlajomulco de Zúñiga
+    NL:
+      - Monterrey
+      - San Pedro Garza García
+      - San Nicolás de los Garza
+      - Apodaca
+      - Guadalupe
+    MEX:
+      - Toluca
+      - Ecatepec de Morelos
+      - Naucalpan de Juárez
+      - Tlalnepantla de Baz
+      - Nezahualcóyotl
+    PUE:
+      - Puebla
+      - San Andrés Cholula
+      - Tehuacán
+    GTO:
+      - León
+      - Guanajuato
+      - Irapuato
+      - Celaya
+    VER:
+      - Veracruz
+      - Xalapa
+      - Coatzacoalcos
+      - Córdoba
+    COA:
+      - Saltillo
+      - Torreón
+      - Monclova
+    YUC:
+      - Mérida
+      - Valladolid
+      - Progreso
+    SIN:
+      - Culiacán
+      - Mazatlán
+      - Los Mochis
+
+# ─────────────────────────────────────────
+# geography  (Layer 1 — 32 estados)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: AGU
+      name: Aguascalientes
+      capital: Aguascalientes
+    - code: BCN
+      name: Baja California
+      capital: Mexicali
+    - code: BCS
+      name: Baja California Sur
+      capital: La Paz
+    - code: CAM
+      name: Campeche
+      capital: Campeche
+    - code: CHP
+      name: Chiapas
+      capital: Tuxtla Gutiérrez
+    - code: CHH
+      name: Chihuahua
+      capital: Chihuahua
+    - code: COA
+      name: Coahuila
+      capital: Saltillo
+    - code: COL
+      name: Colima
+      capital: Colima
+    - code: CDMX
+      name: Ciudad de México
+      capital: Ciudad de México
+      default: true
+    - code: DUR
+      name: Durango
+      capital: Durango
+    - code: GTO
+      name: Guanajuato
+      capital: Guanajuato
+    - code: GRO
+      name: Guerrero
+      capital: Chilpancingo
+    - code: HID
+      name: Hidalgo
+      capital: Pachuca
+    - code: JAL
+      name: Jalisco
+      capital: Guadalajara
+    - code: MEX
+      name: Estado de México
+      capital: Toluca
+    - code: MIC
+      name: Michoacán
+      capital: Morelia
+    - code: MOR
+      name: Morelos
+      capital: Cuernavaca
+    - code: NAY
+      name: Nayarit
+      capital: Tepic
+    - code: NL
+      name: Nuevo León
+      capital: Monterrey
+    - code: OAX
+      name: Oaxaca
+      capital: Oaxaca
+    - code: PUE
+      name: Puebla
+      capital: Puebla
+    - code: QUE
+      name: Querétaro
+      capital: Querétaro
+    - code: ROO
+      name: Quintana Roo
+      capital: Chetumal
+    - code: SLP
+      name: San Luis Potosí
+      capital: San Luis Potosí
+    - code: SIN
+      name: Sinaloa
+      capital: Culiacán
+    - code: SON
+      name: Sonora
+      capital: Hermosillo
+    - code: TAB
+      name: Tabasco
+      capital: Villahermosa
+    - code: TAM
+      name: Tamaulipas
+      capital: Ciudad Victoria
+    - code: TLA
+      name: Tlaxcala
+      capital: Tlaxcala
+    - code: VER
+      name: Veracruz
+      capital: Xalapa
+    - code: YUC
+      name: Yucatán
+      capital: Mérida
+    - code: ZAC
+      name: Zacatecas
+      capital: Zacatecas
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - S.A. de C.V.
+    - S. de R.L. de C.V.
+    - S.A.P.I. de C.V.
+    - A.C.
+    - S.C.
+    - SAPI
+  economic_activities:
+    # Códigos de actividad económica SCIAN México
+    - code: "461110"
+      description: "Comercio al por menor en tiendas de abarrotes y ultramarinos"
+    - code: "461210"
+      description: "Comercio al por menor en supermercados"
+    - code: "465910"
+      description: "Comercio al por menor de computadoras y accesorios"
+    - code: "431110"
+      description: "Comercio al por mayor de abarrotes"
+    - code: "511210"
+      description: "Desarrollo de software"
+    - code: "541610"
+      description: "Consultoría en administración y dirección de empresas"
+    - code: "541110"
+      description: "Servicios legales"
+    - code: "541210"
+      description: "Servicios de contabilidad y auditoría"
+    - code: "236110"
+      description: "Edificación residencial"
+    - code: "484110"
+      description: "Transporte de carga en camiones"
+    - code: "722511"
+      description: "Restaurantes con servicio completo"
+    - code: "441110"
+      description: "Comercio al por menor de automóviles y camionetas nuevos"
+    - code: "311611"
+      description: "Matanza de ganado"
+    - code: "324110"
+      description: "Refinación de petróleo"
+    - code: "561110"
+      description: "Servicios de administración de empresas"
