@@ -1,225 +1,205 @@
 # SandboxERP
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/getsandboxerp/sandboxerp/blob/main/LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Odoo](https://img.shields.io/badge/Odoo-17%20%7C%2018-875A7B.svg)](https://www.odoo.com/)
+**Generate complete, coherent Odoo environments from a YAML spec.**
 
-> Generate complete, coherent Odoo environments from a single command.
+SandboxERP is an open source CLI tool built for Odoo partners, developers, and QA teams — especially across LATAM. Spin up a fully populated Odoo 17 instance in minutes, with realistic data, proper localization, and consistent business behaviour.
 
-SandboxERP is an open source CLI that spins up fully populated Odoo instances with synthetic but realistic data — correct RUTs, IVA, regional addresses, causal ERP flows (Lead → SO → Delivery → Invoice → Payment) — in minutes, not days.
-
-Built for Odoo partners, developers, and QA teams. Especially in LATAM.
-
-The CLI is free and open source. Always.
+> Built by [Team360](https://team360.cl)
 
 ---
 
-## Why SandboxERP
+## Why SandboxERP?
 
-Setting up a realistic Odoo demo or test environment is painful:
+Setting up a realistic Odoo demo or test environment is tedious. You need real-looking customers, products, sale orders, dates that make sense, and data that behaves the way actual ERP data does — leads that become orders, orders that become invoices, invoices that get paid (or don't).
 
-- Demo data is too generic and never matches your country's tax rules
-- Real client data can't be used for testing or training
-- Recreating a specific scenario manually takes hours
-- Bugs are hard to reproduce without the exact same dataset
-
-SandboxERP solves this with a reproducible, seed-based generator that understands ERP causality and local regulations.
-
-```bash
-# A complete Chilean retail company, always the same, in minutes
-sandbox generate --country cl --industry retail --profile small --seed 42
-```
+SandboxERP does all of that from a single command.
 
 ---
 
 ## Features
 
-- **Reproducible** — same seed always produces the same environment
-- **Causal data** — documents follow real ERP flows, not random records
-- **Country-aware** — RUT, IVA, regions, currency out of the box (CL, MX)
-- **Industry packs** — retail, accounting, manufacturing
-- **Docker-based** — zero Odoo installation required
-- **100% synthetic** — never uses real data, safe for demos and training
+- **One command** to generate a fully populated Odoo 17 environment
+- **Country packs** — localized data: tax IDs, currency, language, regions, banks
+- **Industry packs** — relevant product categories, modules, and transaction volumes
+- **Profiles** — scale from `small` (50 customers) to `enterprise` (2,000+)
+- **Reproducible** — `--seed` flag for deterministic data generation
+- **Causal behaviour** — sale orders flow through delivery, invoice, and payment stages
+- **Temporal coherence** — dates, seasonality, and payment delays that make sense
+- **Persona engine** — consistent per-partner behaviour (punctual payers, high-value clients, etc.)
+- **Docker-based** — no manual Odoo setup required
+
+---
+
+## Requirements
+
+### Python 3.10+
+
+Verify your version:
+
+```bash
+python --version
+```
+
+If you need to install or upgrade Python, download it from [python.org](https://www.python.org/downloads/).
+
+### pip
+
+pip is included with Python 3.10+. Verify it is available:
+
+## CLI Reference
+
+**macOS / Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), which includes Docker Compose v2.
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+# Install Docker Engine
+curl -fsSL https://get.docker.com | sh
+
+# Add your user to the docker group (avoids sudo)
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Docker Compose v2 is included as a Docker plugin since Docker Engine 23.0. Verify:
+
+```bash
+docker compose version   # should print v2.x.x or higher
+```
+
+> **Note:** SandboxERP requires `docker compose` (v2 plugin). The legacy `docker-compose` (v1, standalone binary) is not supported.
+
+---
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/getsandboxerp/sandboxerp.git
+cd sandboxerp
+
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate       # Linux / macOS
+.venv\Scripts\activate          # Windows
+
+# Install
+pip install -e .
+```
+
+If the `sandbox` command is not found after installation, your virtual environment is likely not activated. Make sure you run:
+
+```bash
+source .venv/bin/activate       # Linux / macOS
+.venv\Scripts\activate          # Windows
+```
+
+You need to activate the virtual environment every time you open a new terminal session. Verify the CLI is available with:
+
+```bash
+sandbox --help
+```
+
+---
+
+## Quick Start
+
+```bash
+# Generate a Chilean retail environment (small profile)
+sandbox generate --country cl --industry retail --profile small --seed 42
+
+# Access Odoo at http://localhost:8069
+# user: admin  |  password: admin  |  db: sandbox
+```
+
+To expose Odoo on all network interfaces (e.g. for team access):
+
+```bash
+sandbox generate --country cl --industry retail --profile small --seed 42 --bind 0.0.0.0 --port 8069
+```
+
+> **Note:** `--bind 0.0.0.0` requires explicit confirmation.
 
 ---
 
 ## CLI Reference
 
 ```bash
-# Generate a new environment
-sandbox generate --country cl --industry retail --profile small --seed 42
-
-# Expose on all interfaces (requires confirmation)
-sandbox generate --country cl --industry retail --profile small \
-    --bind 0.0.0.0 --port 8069
-
-# Lifecycle
-sandbox start      # resume a stopped environment
-sandbox stop       # stop without losing data
-sandbox destroy    # remove everything
-sandbox destroy --force  # skip confirmation (CI / scripts)
-
-# Help
+sandbox generate --country <code> --industry <name> --profile <size> [--seed N] [--bind HOST] [--port N]
+sandbox start
+sandbox stop
+sandbox destroy
+sandbox destroy --force
 sandbox --help
 sandbox generate --help
 ```
 
-### Options for `generate`
+---
 
-| Flag | Default | Description |
-|---|---|---|
-| `--country` | required | ISO country code (`cl`, `mx`) |
-| `--industry` | required | Industry vertical (`retail`, `accounting`, `manufacturing`) |
-| `--profile` | `small` | Data volume (`small`, `medium`, `enterprise`, `benchmark`) |
-| `--seed` | `42` | Random seed for reproducibility |
-| `--bind` | `127.0.0.1` | Network interface (use `0.0.0.0` with care) |
-| `--port` | `8069` | Host port for Odoo |
+## Available Packs
+
+### Countries
+
+| Code | Country | Currency | Language |
+|------|---------|----------|----------|
+| `cl` | Chile | CLP | es_CL |
+
+### Industries
+
+| Name | Odoo Modules |
+|------|-------------|
+| `retail` | l10n_cl, l10n_cl_edi, sale_management, stock, … |
+
+### Profiles
+
+| Profile | Customers | Suppliers | Products | Sale Orders |
+|---------|-----------|-----------|----------|-------------|
+| `small` | 50 | 8 | 30 | 50 |
+| `medium` | 300 | 30 | 120 | 300 |
+| `enterprise` | 2,000 | 100 | 500 | 2,000 |
+| `benchmark` | 10,000 | 400 | 2,000 | 10,000 |
 
 ---
 
-## Development
+## What Gets Generated
 
-### Setup
+Running `sandbox generate --country cl --industry retail --profile small --seed 42` produces:
+
+- ✓ Odoo 17 instance with Chilean localization (`l10n_cl`, `l10n_cl_edi`)
+- ✓ Language set to `es_CL`
+- ✓ Company configured with CLP currency and Chile defaults
+- ✓ 50 customers + 8 suppliers (Faker `es_CL`, valid RUTs)
+- ✓ 30 products with SKUs, prices, and category margins
+- ✓ 50 sale orders distributed across 12 months with retail seasonality
+- ✓ Per-partner personas (punctual, frequent, high-value, etc.)
+- ✓ Coherent dates via Time Engine + payment delay per persona
+
+---
+
+## Other Commands
 
 ```bash
-git clone https://github.com/getsandboxerp/sandboxerp.git
-cd sandboxerp
-pip install -e ".[dev]"
-```
+# Stop the running containers (data preserved)
+sandbox stop
 
-### Run tests
+# Start previously stopped containers
+sandbox start
 
-```bash
-pytest
-```
+# Remove containers and volumes
+sandbox destroy
 
-### Project structure
-
-```
-sandboxerp/
-├── sandboxerp/
-│   ├── cli/          ← Typer commands (main, generate, start, stop, destroy)
-│   ├── engine/       ← orchestration, docker, data generation
-│   ├── packs/        ← country and industry pack loader
-│   └── docker/       ← compose templates
-└── tests/
+# Remove without confirmation prompt
+sandbox destroy --force
 ```
 
 ---
 
-## Branching model
+## Contributing
 
-| Branch | Purpose |
-|---|---|
-| `main` | Stable. Every commit here is a versioned release. |
-| `dev` | Integration. Day-to-day work merges here first. |
-| `feat/xxx` | One branch per feature (e.g. `feat/docker-engine`). |
-
-**Flow:** `feat/xxx` → PR → `dev` → PR → `main`
-
-Never push directly to `main`.
-
-### Contributing code step by step
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/getsandboxerp/sandboxerp.git
-cd sandboxerp
-
-# 2. Create your feature branch off dev
-git checkout dev
-git checkout -b feat/your-feature
-
-# 3. Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-
-# 4. Make your changes, then verify
-pytest
-
-# 5. Commit and push
-git add .
-git commit -m "feat: describe your change"
-git push origin feat/your-feature
-```
-
-Then open a PR from `feat/your-feature` → `dev` on GitHub.
-
----
-
-## How to contribute
-
-Contributions are welcome. Please open an issue before submitting a PR so we can discuss the approach first.
-
-### Branching model
-
-| Branch | Purpose |
-|---|---|
-| `main` | Stable. Every commit here is a versioned release. |
-| `feat/xxx` | One branch per feature, fix, or improvement. |
-
-**Flow:** `feat/xxx` → PR → `main`
-
-`main` is protected — direct pushes are blocked. All changes go through a pull request.
-
-### Branch naming
-
-```
-feat/docker-engine
-fix/rut-validation
-docs/contributing-guide
-test/behaviour-engine
-refactor/cli-structure
-chore/update-dependencies
-```
-
-### Step by step
-
-```bash
-# 1. Clone the repo
-git clone git@github.com:getsandboxerp/sandboxerp.git
-cd sandboxerp
-
-# 2. Create a virtual environment and install dependencies
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-# 3. Create your branch from main
-git checkout main
-git checkout -b feat/your-feature
-
-# 4. Make your changes, then run the tests
-pytest
-
-# 5. Commit using Conventional Commits
-git add .
-git commit -m "feat: describe your change"
-
-# 6. Push and open a PR to main
-git push origin feat/your-feature
-```
-
-Then open a pull request from `feat/your-feature` → `main` on GitHub.
-
-### Commit conventions
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-| Prefix | When to use |
-|---|---|
-| `feat:` | New functionality |
-| `fix:` | Bug fix |
-| `docs:` | Documentation only |
-| `test:` | Adding or fixing tests |
-| `refactor:` | Code refactoring without functional change |
-| `chore:` | Maintenance tasks (deps, config) |
-
-By contributing you agree your code will be released under the MIT license.
+Contributions are welcome! Please read [DEVELOPMENT.md](DEVELOPMENT.md) before opening a PR.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-Built by [Team360](https://team360.cl) · [sandboxerp.team360.cl](https://sandboxerp.team360.cl)
+MIT License — Copyright © [Team360](https://team360.cl)
