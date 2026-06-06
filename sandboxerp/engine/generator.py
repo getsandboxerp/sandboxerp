@@ -37,6 +37,7 @@ from sandboxerp.engine.docker import (
     write_compose,
 )
 from sandboxerp.engine.installer import install
+from sandboxerp.engine.health import run_health_check
 
 console = Console()
 
@@ -178,7 +179,7 @@ def generate_environment(
     console.print("  [green]✓[/green] Database ready")
 
     # ── Installer phase ──────────────────────────────────────────────
-    install(
+    metrics = install(
         country=country,
         industry=industry,
         profile=profile,
@@ -186,6 +187,7 @@ def generate_environment(
         host=odoo_host,
         port=port,
     )
+    run_health_check(metrics["client"], metrics)
 
     host_display = "localhost" if bind in ("127.0.0.1", "0.0.0.0") else bind
     console.print(
