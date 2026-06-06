@@ -653,7 +653,12 @@ def _execute_so_chain(
 
     # ── Step 1: confirm SO ────────────────────────────────────────────────
     try:
+        # Read date_order before confirm — Odoo 17 resets it to now() on confirm
+        so_rows = client.search_read("sale.order", [["id", "=", so_id]], ["date_order"])
+        original_date = so_rows[0]["date_order"] if so_rows else None
         client.execute("sale.order", "action_confirm", [so_id])
+        if original_date:
+            client.write("sale.order", [so_id], {"date_order": original_date})
         result["confirmed"] = True
     except OdooError:
         return result  # cannot proceed without a confirmed SO
