@@ -411,6 +411,41 @@ def _generate_partners(
     )
     country_id = country_ids[0] if country_ids else False
 
+    # ── Resolve fiscal partner fields from country pack ───────────────
+    pf = country_pack.get("partner_fields", {})
+    vat_prefix: str = pf.get("vat_prefix", "")
+    id_type_name: str = pf.get("identification_type_name", "")
+    company_taxpayer_field: str = pf.get("company_taxpayer_field", "")
+    company_taxpayer_value: str = pf.get("company_taxpayer_value", "")
+    person_taxpayer_field: str = pf.get("person_taxpayer_field", "")
+    person_taxpayer_value: str = pf.get("person_taxpayer_value", "")
+
+    # Resolve identification type — model may not exist in all localizations
+    identification_type_id: int | None = None
+    if id_type_name:
+        try:
+            id_type_ids = client.search(
+                "l10n_latam.identification.type", [["name", "=", id_type_name]]
+            )
+            if id_type_ids:
+                identification_type_id = id_type_ids[0]
+        except OdooError:
+            pass  # model not available in this localization
+
+    # Verify which taxpayer fields actually exist in res.partner
+    # Avoids failures when localization modules are not installed
+    try:
+        available_partner_fields = set(
+            client.execute("res.partner", "fields_get", [], attributes=["string"]).keys()
+        )
+    except OdooError:
+        available_partner_fields = set()
+
+    if company_taxpayer_field and company_taxpayer_field not in available_partner_fields:
+        company_taxpayer_field = ""
+    if person_taxpayer_field and person_taxpayer_field not in available_partner_fields:
+        person_taxpayer_field = ""
+
     partner_ids: list[int] = []
 
     with Progress(
@@ -423,7 +458,7 @@ def _generate_partners(
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
             raw_vat = getattr(fake, person_rut_method, fake.ssn)()
-            vat = "CL" + raw_vat.replace(".", "")
+            vat = vat_prefix + raw_vat.replace(".", "")
             record = {
                 "name": fake.name(),
                 "customer_rank": 1,
@@ -434,6 +469,10 @@ def _generate_partners(
                 "phone": fake.phone_number(),
                 "country_id": country_id,
             }
+            if identification_type_id:
+                record["l10n_latam_identification_type_id"] = identification_type_id
+            if person_taxpayer_field and person_taxpayer_value:
+                record[person_taxpayer_field] = person_taxpayer_value
             try:
                 pid = client.create("res.partner", record)
             except Exception:
@@ -445,7 +484,7 @@ def _generate_partners(
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
             raw_vat = getattr(fake, company_rut_method, fake.ssn)()
-            vat = "CL" + raw_vat.replace(".", "")
+            vat = vat_prefix + raw_vat.replace(".", "")
             record = {
                 "name": fake.company(),
                 "customer_rank": 0,
@@ -456,6 +495,10 @@ def _generate_partners(
                 "phone": fake.phone_number(),
                 "country_id": country_id,
             }
+            if identification_type_id:
+                record["l10n_latam_identification_type_id"] = identification_type_id
+            if company_taxpayer_field and company_taxpayer_value:
+                record[company_taxpayer_field] = company_taxpayer_value
             try:
                 pid = client.create("res.partner", record)
             except Exception:
@@ -559,6 +602,184 @@ def _months_in_window(window: ObservationWindow) -> list[int]:
     return sorted(months)
 
 
+# ─────────────────────────────────────────
+# Causal chain execution
+# ─────────────────────────────────────────
+
+def _execute_so_chain(
+    client: OdooClient,
+    so_id: int,
+) -> dict:
+    """Execute the full causal chain for a Sale Order in Odoo 17.
+
+    Runs five steps in sequence. Each step is wrapped individually so a
+    failure in one step does not abort the remaining Sale Orders in the
+    generation run.
+
+    Steps
+    -----
+    1. **Confirm SO** — ``sale.order.action_confirm`` (draft → sale).
+    2. **Validate delivery** — creates ``stock.move.line`` records with
+       ``quantity`` (Odoo 17 field name) and calls ``button_validate``
+       with ``immediate_transfer=True`` and ``skip_sms=True`` context
+       to bypass the SMS confirmation wizard.
+    3. **Create invoice** — ``sale.advance.payment.inv`` wizard with
+       ``advance_payment_method=delivered`` and ``open_invoices=False``.
+       The ``create_invoices`` call may raise a serialization error
+       (``cannot marshal None``) because Odoo 17 returns ``None`` in
+       the response; this specific exception is silently ignored and
+       the invoice is confirmed by re-reading ``sale.order.invoice_ids``.
+    4. **Post invoice** — ``account.move.action_post`` (draft → posted).
+    5. **Register payment** — ``account.payment.register`` wizard using
+       the first available cash journal.
+
+    Requires ``allow_none=True`` on the XML-RPC ``ServerProxy``
+    (set in :meth:`~sandboxerp.engine.odoo.OdooClient.connect`) because
+    Odoo 17 returns ``None`` in ``button_validate`` responses.
+
+    :param client: Authenticated :class:`~sandboxerp.engine.odoo.OdooClient`.
+    :param so_id: ID of the Sale Order to process (must be in draft state).
+    :return: Dict with boolean flags for each completed step:
+             ``confirmed``, ``delivered``, ``invoiced``, ``posted``,
+             ``paid``.
+    """
+    result: dict[str, bool] = {
+        "confirmed": False,
+        "delivered": False,
+        "invoiced": False,
+        "posted": False,
+        "paid": False,
+    }
+
+    # ── Step 1: confirm SO ────────────────────────────────────────────────
+    try:
+        client.execute("sale.order", "action_confirm", [so_id])
+        result["confirmed"] = True
+    except OdooError:
+        return result  # cannot proceed without a confirmed SO
+
+    # ── Step 2: validate delivery (best-effort) ───────────────────────────
+    try:
+        so_rows = client.search_read(
+            "sale.order", [["id", "=", so_id]], ["picking_ids"]
+        )
+        picking_ids: list[int] = so_rows[0]["picking_ids"] if so_rows else []
+        for pick_id in picking_ids:
+            move_ids = client.search(
+                "stock.move", [["picking_id", "=", pick_id]]
+            )
+            for move_id in move_ids:
+                move_rows = client.search_read(
+                    "stock.move",
+                    [["id", "=", move_id]],
+                    [
+                        "product_id",
+                        "product_uom",
+                        "product_uom_qty",
+                        "location_id",
+                        "location_dest_id",
+                    ],
+                )
+                if not move_rows:
+                    continue
+                m = move_rows[0]
+                client.execute(
+                    "stock.move.line",
+                    "create",
+                    {
+                        "move_id": move_id,
+                        "picking_id": pick_id,
+                        "product_id": m["product_id"][0],
+                        "product_uom_id": m["product_uom"][0],
+                        "quantity": m["product_uom_qty"],
+                        "location_id": m["location_id"][0],
+                        "location_dest_id": m["location_dest_id"][0],
+                    },
+                )
+            client.execute(
+                "stock.picking",
+                "button_validate",
+                [pick_id],
+                context={"immediate_transfer": True, "skip_sms": True},
+            )
+        result["delivered"] = True
+    except OdooError:
+        pass
+
+    # ── Step 3: create invoice ────────────────────────────────────────────
+    inv_id: int | None = None
+    try:
+        ctx = {
+            "active_ids": [so_id],
+            "active_model": "sale.order",
+            "active_id": so_id,
+            "open_invoices": False,
+        }
+        wiz_id: int = client.execute(
+            "sale.advance.payment.inv",
+            "create",
+            {"advance_payment_method": "delivered"},
+            context=ctx,
+        )
+        try:
+            client.execute(
+                "sale.advance.payment.inv",
+                "create_invoices",
+                [wiz_id],
+                context=ctx,
+            )
+        except OdooError as exc:
+            if "cannot marshal None" not in str(exc):
+                raise
+        so_after = client.search_read(
+            "sale.order", [["id", "=", so_id]], ["invoice_ids"]
+        )
+        invoice_ids: list[int] = so_after[0]["invoice_ids"] if so_after else []
+        if invoice_ids:
+            inv_id = invoice_ids[0]
+            result["invoiced"] = True
+    except OdooError:
+        pass
+
+    if inv_id is None:
+        return result
+
+    # ── Step 4: post invoice ──────────────────────────────────────────────
+    try:
+        client.execute("account.move", "action_post", [inv_id])
+        result["posted"] = True
+    except OdooError:
+        return result
+
+    # ── Step 5: register payment ──────────────────────────────────────────
+    try:
+        journal_ids = client.search(
+            "account.journal", [["type", "=", "cash"]], limit=1
+        )
+        if journal_ids:
+            pay_ctx = {
+                "active_ids": [inv_id],
+                "active_model": "account.move",
+            }
+            pay_wiz_id: int = client.execute(
+                "account.payment.register",
+                "create",
+                {"journal_id": journal_ids[0]},
+                context=pay_ctx,
+            )
+            client.execute(
+                "account.payment.register",
+                "action_create_payments",
+                [pay_wiz_id],
+                context=pay_ctx,
+            )
+            result["paid"] = True
+    except OdooError:
+        pass
+
+    return result
+
+
 def _generate_transactions(
     client: OdooClient,
     *,
@@ -626,6 +847,9 @@ def _generate_transactions(
     pricelist_id = pricelist_ids[0] if pricelist_ids else False
 
     created_so = 0
+    confirmed_so = 0
+    invoiced_so = 0
+    paid_so = 0
     total_chains = sum(monthly_counts.values())
 
     with Progress(
@@ -707,8 +931,17 @@ def _generate_transactions(
                     if pricelist_id:
                         so_vals["pricelist_id"] = pricelist_id
 
-                    client.create("sale.order", so_vals)
+                    so_id = client.create("sale.order", so_vals)
                     created_so += 1
+
+                    # Execute causal chain: confirm → deliver → invoice → pay
+                    chain_result = _execute_so_chain(client, so_id)
+                    if chain_result["confirmed"]:
+                        confirmed_so += 1
+                    if chain_result["invoiced"]:
+                        invoiced_so += 1
+                    if chain_result["paid"]:
+                        paid_so += 1
                 except OdooError:
                     pass
 
@@ -718,6 +951,9 @@ def _generate_transactions(
         console.print(f"  [dim]{persona_engine.summary()}[/dim]")
 
     console.print(
-        f"  [green]✓[/green] {created_so} sale orders "
+        f"  [green]✓[/green] {created_so} sale orders created "
+        f"| confirmed: {confirmed_so} "
+        f"| invoiced: {invoiced_so} "
+        f"| paid: {paid_so} "
         f"({len(active_months)} months, seasonality: {industry})"
     )
