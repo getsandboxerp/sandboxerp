@@ -195,7 +195,7 @@ class TestGeneratePartners:
         mock_client.search.return_value = [1]
         mock_client.create.return_value = 99
 
-        ids = _generate_partners(
+        ids, _, _ = _generate_partners(
             mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
         )
         assert len(ids) == 8  # small: 5 customers + 3 suppliers
@@ -207,7 +207,7 @@ class TestGeneratePartners:
         mock_client.search.return_value = []
         mock_client.create.return_value = 10
 
-        ids = _generate_partners(
+        ids, _, _ = _generate_partners(
             mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
         )
         assert all(isinstance(i, int) for i in ids)
@@ -224,7 +224,7 @@ class TestGenerateProducts:
         fake.seed_instance(42)
         mock_client.create.return_value = 55
 
-        ids = _generate_products(mock_client, _INDUSTRY_PACK, "small", fake)
+        ids, _ = _generate_products(mock_client, _INDUSTRY_PACK, "small", fake)
         assert len(ids) == 5  # small: 5 products
 
     def test_returns_list_of_ints(self, mock_client):
@@ -233,7 +233,7 @@ class TestGenerateProducts:
         fake.seed_instance(0)
         mock_client.create.return_value = 7
 
-        ids = _generate_products(mock_client, _INDUSTRY_PACK, "small", fake)
+        ids, _ = _generate_products(mock_client, _INDUSTRY_PACK, "small", fake)
         assert all(isinstance(i, int) for i in ids)
 
 
@@ -311,12 +311,21 @@ class TestInstall:
             "sandboxerp.engine.installer._wait_for_xmlrpc",
             return_value=mock_client,
         ):
-            install(
+            result = install(
                 country="cl",
                 industry="retail",
                 profile="small",
                 seed=42,
             )
+            assert isinstance(result, dict)
+            assert "client" in result
+            assert "customers" in result
+            assert "suppliers" in result
+            assert "products" in result
+            assert "so_created" in result
+            assert "so_confirmed" in result
+            assert "so_invoiced" in result
+            assert "so_paid" in result
 
     def test_raises_if_pack_missing(self):
         with patch(

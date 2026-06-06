@@ -61,7 +61,7 @@ def install(
     host: str = "127.0.0.1",
     port: int = 8069,
     observation_months: int = 12,
-) -> None:
+) -> dict:
     """Run the full post-Docker installation pipeline.
 
     :param country: ISO country code (e.g. ``"cl"``).
@@ -102,13 +102,15 @@ def install(
     fake = Faker(country_pack["meta"]["locale"])
     fake.seed_instance(seed)
 
-    partner_ids = _generate_partners(client, country_pack, industry_pack, profile, fake)
-    product_ids = _generate_products(client, industry_pack, profile, fake)
+    partner_ids, customer_count, supplier_count = _generate_partners(
+        client, country_pack, industry_pack, profile, fake
+    )
+    product_ids, product_count = _generate_products(client, industry_pack, profile, fake)
 
     window = ObservationWindow.last_n_months(observation_months)
 
     console.print("[bold]→[/bold] Generating transactions...")
-    _generate_transactions(
+    tx_metrics = _generate_transactions(
         client,
         country_pack=country_pack,
         industry_pack=industry_pack,
@@ -120,6 +122,15 @@ def install(
     )
 
     console.print("\n[bold green]✓ Installation complete.[/bold green]")
+    return {
+        "client": client,
+        "country_pack": country_pack,
+        "industry_pack": industry_pack,
+        "customers": customer_count,
+        "suppliers": supplier_count,
+        "products": product_count,
+        **tx_metrics,
+    }
 
 
 # ─────────────────────────────────────────
@@ -510,7 +521,7 @@ def _generate_partners(
     console.print(
         f"  [green]✓[/green] {customer_count} customers + {supplier_count} suppliers"
     )
-    return partner_ids
+    return partner_ids, customer_count, supplier_count
 
 
 # ─────────────────────────────────────────
@@ -574,7 +585,7 @@ def _generate_products(
             progress.advance(task)
 
     console.print(f"  [green]✓[/green] {count} products")
-    return product_ids
+    return product_ids, count
 
 
 # ─────────────────────────────────────────
@@ -962,3 +973,10 @@ def _generate_transactions(
         f"| paid: {paid_so} "
         f"({len(active_months)} months, seasonality: {industry})"
     )
+    return {
+        "so_created": created_so,
+        "so_confirmed": confirmed_so,
+        "so_invoiced": invoiced_so,
+        "so_paid": paid_so,
+        "observation_months": len(active_months),
+    }
