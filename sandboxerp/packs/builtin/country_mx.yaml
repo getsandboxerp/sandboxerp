@@ -43,6 +43,19 @@ fiscal:
   faker_company_id: rfc              # Faker es_MX method — fake.rfc(natural=False)
   sat_environment: test              # 'test' for sandbox, 'production' for live
 
+
+# ─────────────────────────────────────────
+# partner_fields
+# Extra Odoo fields required by l10n_mx for partners to allow
+# action_post. RFC is stored without country prefix in Odoo MX.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: ""                          # RFC needs no country prefix in Odoo MX
+  identification_type_name: "VAT"         # generic VAT type for MX partners
+  company_taxpayer_field: "l10n_mx_edi_fiscal_regime"
+  company_taxpayer_value: "601"           # General de Ley Personas Morales
+  person_taxpayer_field: "l10n_mx_edi_fiscal_regime"
+  person_taxpayer_value: "612"            # Personas Físicas con Actividades Empresariales
 # ─────────────────────────────────────────
 # taxpayer_types  (regímenes fiscales SAT — CFDI 4.0)
 # ─────────────────────────────────────────

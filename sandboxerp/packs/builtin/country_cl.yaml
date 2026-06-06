@@ -43,6 +43,22 @@ fiscal:
   faker_company_id: company_rut     # Faker es_CL method for company RUT
   sii_environment: certification    # 'certification' for sandbox, 'production' for live
 
+
+# ─────────────────────────────────────────
+# partner_fields
+# Extra Odoo fields required by l10n_cl for partners to allow
+# action_post (posting invoices). installer.py reads this section
+# and applies the fields when creating res.partner records.
+# identification_type_name is resolved at runtime via
+# l10n_latam.identification.type search — no hardcoded IDs.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: "CL"                       # prepended to the raw Faker RUT
+  identification_type_name: "RUT"        # looked up in l10n_latam.identification.type
+  company_taxpayer_field: "l10n_cl_sii_taxpayer_type"
+  company_taxpayer_value: "1"            # VAT Affected (1ª Categoría) — required for factura
+  person_taxpayer_field: "l10n_cl_sii_taxpayer_type"
+  person_taxpayer_value: "1"            # VAT Affected — simplifies invoicing in sandbox
 # ─────────────────────────────────────────
 # taxpayer_types  (required by l10n_cl_edi)
 # ─────────────────────────────────────────

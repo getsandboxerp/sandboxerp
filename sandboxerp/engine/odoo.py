@@ -108,8 +108,8 @@ class OdooClient:
         """
         base_url = f"http://{host}:{port}"
         try:
-            common = xmlrpc.client.ServerProxy(f"{base_url}/xmlrpc/2/common")
-            models = xmlrpc.client.ServerProxy(f"{base_url}/xmlrpc/2/object")
+            common = xmlrpc.client.ServerProxy(f"{base_url}/xmlrpc/2/common", allow_none=True)
+            models = xmlrpc.client.ServerProxy(f"{base_url}/xmlrpc/2/object", allow_none=True)
             # Verify connectivity
             common.version()
         except Exception as exc:
