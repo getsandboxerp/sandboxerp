@@ -177,10 +177,15 @@ class TestConfigureCompany:
         assert "country_id" in first_call_values
         assert "currency_id" in second_call_values
 
-    def test_skips_write_if_no_ids_found(self, mock_client):
+    def test_always_writes_name_and_logo(self, mock_client):
         mock_client.search.return_value = []
         _configure_company(mock_client, _COUNTRY_PACK)
-        mock_client.write.assert_not_called()
+        mock_client.write.assert_called_once()
+        call_args = mock_client.write.call_args[0]
+        assert call_args[0] == "res.company"
+        assert "name" in call_args[2]
+        assert "logo" in call_args[2]
+        assert "website" in call_args[2]
 
 
 # ─────────────────────────────────────────

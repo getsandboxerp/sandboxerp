@@ -46,6 +46,10 @@ ODOO_DB = "sandbox"
 ODOO_USER = "admin"
 ODOO_PASSWORD = "admin"
 
+# SandboxERP company logo — SVG encoded as base64.
+# Generated from sandboxerp_logo.svg. Update deliberately.
+SANDBOXERP_LOGO_B64 = "PHN2ZyB3aWR0aD0iMzQwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMzQwIDgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgcng9IjEyIiBmaWxsPSIjMWExYTJlIi8+CiAgPHJlY3QgeD0iMTIiIHk9IjEyIiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSI0IiBmaWxsPSIjNGY4ZWY3Ii8+CiAgPHJlY3QgeD0iNDQiIHk9IjEyIiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSI0IiBmaWxsPSIjNGY4ZWY3IiBvcGFjaXR5PSIwLjUiLz4KICA8cmVjdCB4PSIxMiIgeT0iNDQiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcng9IjQiIGZpbGw9IiM0ZjhlZjciIG9wYWNpdHk9IjAuNSIvPgogIDxyZWN0IHg9IjQ0IiB5PSI0NCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIgZmlsbD0iIzRmOGVmNyIvPgogIDx0ZXh0IHg9Ijk2IiB5PSI0NiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIzMiIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzFhMWEyZSIgbGV0dGVyLXNwYWNpbmc9Ii0xIj5TYW5kYm94PHRzcGFuIGZpbGw9IiM0ZjhlZjciPkVSUDwvdHNwYW4+PC90ZXh0PgogIDx0ZXh0IHg9Ijk2IiB5PSI2OCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzFhMWEyZSIgdGV4dExlbmd0aD0iMTY2IiBsZW5ndGhBZGp1c3Q9InNwYWNpbmciPk9ET08gRU5WSVJPTk1FTlQgR0VORVJBVE9SPC90ZXh0Pgo8L3N2Zz4="
+
 
 # ─────────────────────────────────────────
 # Public entry point
@@ -302,7 +306,11 @@ def _configure_company(client: OdooClient, country_pack: dict) -> None:
     currency_ids = client.search("res.currency", [("name", "=", currency_name)])
     currency_id = currency_ids[0] if currency_ids else False
 
-    values: dict[str, Any] = {}
+    values: dict[str, Any] = {
+        "name": "SandboxERP",
+        "website": "https://sandboxerp.team360.cl",
+        "logo": SANDBOXERP_LOGO_B64,
+    }
     if country_id:
         values["country_id"] = country_id
     if currency_id:
