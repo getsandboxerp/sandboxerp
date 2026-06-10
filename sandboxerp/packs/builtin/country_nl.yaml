@@ -1,0 +1,271 @@
+# Country Pack — Netherlands
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: nl
+  name: Netherlands
+  locale: nl_NL          # Faker locale for names, addresses, etc.
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_nl            # base: chart of accounts, taxes, fiscal positions
+  chart_of_accounts: l10n_nl
+  currency: EUR
+  language: nl_NL
+  country_code: NL
+  post_install:
+    - set_currency: EUR
+    - set_language: nl_NL
+    - set_country: NL
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: BTW
+  tax_rate: 0.21
+  tax_account: BTW af te dragen
+  id_label: BTW-nummer
+  id_format: "NLXXXXXXXXX B XX"    # NL + 9 digits + B + 2 digits (e.g. NL123456789B01)
+  faker_person_id: ssn              # Faker nl_NL ssn → BSN (Burgerservicenummer)
+  faker_company_id: ssn             # No dedicated company VAT method in Faker nl_NL
+
+# ─────────────────────────────────────────
+# partner_fields
+# NL has no l10n_latam dependency. identification_type_name is left
+# empty so installer.py skips the l10n_latam.identification.type lookup.
+# No country-specific taxpayer fields are required for l10n_nl to allow
+# action_post — standard VAT field is sufficient.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: "NL"                  # Odoo EU VAT format: NL + BSN digits
+  identification_type_name: ""      # no l10n_latam — installer skips lookup
+  company_taxpayer_field: ""        # no extra field required by l10n_nl
+  company_taxpayer_value: ""
+  person_taxpayer_field: ""
+  person_taxpayer_value: ""
+
+# ─────────────────────────────────────────
+# banks  (principales bancos Países Bajos — DNB)
+# ─────────────────────────────────────────
+banks:
+  - code: "INGB"
+    name: ING Bank
+    short: ING
+    swift: INGBNL2A
+  - code: "ABNA"
+    name: ABN AMRO Bank
+    short: ABN AMRO
+    swift: ABNANL2A
+  - code: "RABO"
+    name: Rabobank
+    short: Rabobank
+    swift: RABONL2U
+  - code: "SNSB"
+    name: SNS Bank
+    short: SNS
+    swift: SNSBNL2A
+  - code: "TRIO"
+    name: Triodos Bank
+    short: Triodos
+    swift: TRIONL2U
+  - code: "KNAB"
+    name: Knab
+    short: Knab
+    swift: KNABNL2H
+  - code: "BUNQ"
+    name: bunq
+    short: bunq
+    swift: BUNQNL2A
+  - code: "ASNB"
+    name: ASN Bank
+    short: ASN
+    swift: ASNBNL21
+  - code: "RBRB"
+    name: RegioBank
+    short: RegioBank
+    swift: RBRBNL21
+  - code: "DEUT"
+    name: Deutsche Bank Netherlands
+    short: Deutsche Bank
+    swift: DEUTNL2A
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{street} {number}, {zip} {city}, {province}"
+  street_suffixes:
+    - straat
+    - laan
+    - weg
+    - plein
+    - gracht
+    - kade
+    - dijk
+    - singel
+    - dreef
+    - steeg
+  cities_by_province:
+    Noord-Holland:
+      - Amsterdam
+      - Haarlem
+      - Zaandam
+      - Amstelveen
+      - Hilversum
+      - Alkmaar
+    Zuid-Holland:
+      - Rotterdam
+      - Den Haag
+      - Leiden
+      - Dordrecht
+      - Delft
+      - Zoetermeer
+    Utrecht:
+      - Utrecht
+      - Amersfoort
+      - Nieuwegein
+      - Houten
+      - Zeist
+    Noord-Brabant:
+      - Eindhoven
+      - Tilburg
+      - Breda
+      - Den Bosch
+      - Helmond
+    Gelderland:
+      - Arnhem
+      - Nijmegen
+      - Apeldoorn
+      - Ede
+      - Doetinchem
+    Overijssel:
+      - Enschede
+      - Zwolle
+      - Deventer
+      - Hengelo
+      - Almelo
+    Limburg:
+      - Maastricht
+      - Venlo
+      - Sittard
+      - Roermond
+      - Heerlen
+    Friesland:
+      - Leeuwarden
+      - Sneek
+      - Drachten
+      - Heerenveen
+    Groningen:
+      - Groningen
+      - Veendam
+      - Stadskanaal
+    Zeeland:
+      - Middelburg
+      - Vlissingen
+      - Goes
+    Drenthe:
+      - Assen
+      - Emmen
+      - Hoogeveen
+    Flevoland:
+      - Almere
+      - Lelystad
+      - Dronten
+
+# ─────────────────────────────────────────
+# geography  (Layer 1 — 12 provincies)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: NH
+      name: Noord-Holland
+      capital: Haarlem
+      default: true
+    - code: ZH
+      name: Zuid-Holland
+      capital: Den Haag
+    - code: UT
+      name: Utrecht
+      capital: Utrecht
+    - code: NB
+      name: Noord-Brabant
+      capital: Den Bosch
+    - code: GE
+      name: Gelderland
+      capital: Arnhem
+    - code: OV
+      name: Overijssel
+      capital: Zwolle
+    - code: LI
+      name: Limburg
+      capital: Maastricht
+    - code: FR
+      name: Friesland
+      capital: Leeuwarden
+    - code: GR
+      name: Groningen
+      capital: Groningen
+    - code: ZE
+      name: Zeeland
+      capital: Middelburg
+    - code: DR
+      name: Drenthe
+      capital: Assen
+    - code: FL
+      name: Flevoland
+      capital: Lelystad
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - B.V.
+    - N.V.
+    - V.O.F.
+    - C.V.
+    - Stichting
+    - Coöperatie
+  economic_activities:
+    # SBI-codes (Standaard Bedrijfsindeling — CBS Netherlands)
+    - code: "4711"
+      description: "Supermarkten en dergelijke winkels met een algemeen assortiment"
+    - code: "4719"
+      description: "Niet-gespecialiseerde winkels"
+    - code: "6201"
+      description: "Ontwikkelen en produceren van software"
+    - code: "6202"
+      description: "Advisering en ondersteuning op het gebied van informatietechnologie"
+    - code: "6920"
+      description: "Accountancy, belastingadvisering en administratie"
+    - code: "6910"
+      description: "Rechtskundige dienstverlening"
+    - code: "7022"
+      description: "Adviesbureaus op het gebied van bedrijfsvoering"
+    - code: "4120"
+      description: "Algemene bouw van woningen en utiliteitsgebouwen"
+    - code: "4941"
+      description: "Goederenvervoer over de weg"
+    - code: "5610"
+      description: "Restaurants en dergelijke horecabedrijven"
+    - code: "4511"
+      description: "Handel in en reparatie van personenauto's en lichte bedrijfsauto's"
+    - code: "1011"
+      description: "Slachterijen"
+    - code: "4651"
+      description: "Groothandel in computers en randapparatuur"
+    - code: "7010"
+      description: "Holdings en concernkantoren"
+    - code: "6820"
+      description: "Verhuur van en handel in eigen onroerend goed"
