@@ -38,11 +38,17 @@ from sandboxerp.engine.docker import (
 )
 from sandboxerp.engine.installer import install
 from sandboxerp.engine.health import run_health_check
+from sandboxerp.packs.registry import PackType, list_packs
 
 console = Console()
 
-# Supported values for validation.
-SUPPORTED_COUNTRIES = {"cl", "mx", "ar", "co", "pe"}
+# Supported values derived dynamically from the pack registry.
+# Adding a new country pack to registry.py automatically enables it here.
+SUPPORTED_COUNTRIES = {
+    c
+    for p in list_packs(PackType.COUNTRY)
+    for c in p.countries
+}
 SUPPORTED_INDUSTRIES = {"retail", "accounting", "manufacturing", "services"}
 SUPPORTED_PROFILES = {"small", "medium", "enterprise", "benchmark"}
 

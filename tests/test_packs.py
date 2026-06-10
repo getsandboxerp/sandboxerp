@@ -62,6 +62,12 @@ class TestRegistry:
         assert pack.name == "country_mx"
         assert pack.type == PackType.COUNTRY
 
+    def test_get_pack_country_nl(self):
+        """country_nl must be registered."""
+        pack = get_pack("country_nl")
+        assert pack.name == "country_nl"
+        assert pack.type == PackType.COUNTRY
+
     def test_get_pack_retail(self):
         """retail must be registered as an industry pack."""
         pack = get_pack("retail")
@@ -94,6 +100,14 @@ class TestRegistry:
         assert "retail" in names
         assert names.index("country_mx") < names.index("retail")
 
+    def test_resolve_packs_nl_retail(self):
+        """resolve_packs returns country_nl pack then industry pack."""
+        packs = resolve_packs("nl", "retail")
+        names = [p.name for p in packs]
+        assert "country_nl" in names
+        assert "retail" in names
+        assert names.index("country_nl") < names.index("retail")
+
     def test_resolve_packs_unknown_country_still_resolves_industry(self):
         """Unknown country skips country pack but still returns industry."""
         packs = resolve_packs("zz", "retail")
@@ -114,6 +128,11 @@ class TestLoader:
     def test_load_country_pack_mx(self):
         """load_country_pack('mx') must return a dict."""
         pack = load_country_pack("mx")
+        assert isinstance(pack, dict)
+
+    def test_load_country_pack_nl(self):
+        """load_country_pack('nl') must return a dict."""
+        pack = load_country_pack("nl")
         assert isinstance(pack, dict)
 
     def test_load_missing_pack_raises_file_not_found(self):
