@@ -1,0 +1,79 @@
+"""
+sandboxerp.engine.vat_generators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Country-specific VAT number generators for locales where Faker does not
+provide a valid format accepted by Odoo's VAT validation.
+
+Each generator is a callable that accepts a :class:`random.Random` instance
+and returns a valid VAT string (without country prefix — the prefix is
+applied by the installer from ``partner_fields.vat_prefix``).
+
+Registry
+--------
+VAT_GENERATORS maps a country code (lowercase) to its generator function.
+The installer looks up this registry when ``fiscal.vat_format`` is set to
+the special value ``"__generator__"`` in a country pack.
+
+:author: Hector Colina / Team360 <https://team360.cl>
+"""
+
+from __future__ import annotations
+
+import random
+
+
+# ─────────────────────────────────────────
+# Netherlands — BTW-nummer
+# ─────────────────────────────────────────
+
+
+def _nl_btw(rng: random.Random) -> str:
+    """Generate a valid Dutch BTW-nummer (without NL prefix).
+
+    Format: 9 digits + B + 2 digits (e.g. ``104332189B12``).
+
+    The 9-digit number uses a modulo-11 checksum:
+    - weights [9, 8, 7, 6, 5, 4, 3, 2] applied to the first 8 digits.
+    - check digit = sum % 11.
+    - If check digit is 10 (invalid), regenerate.
+
+    The 2-digit suffix after ``B`` is free (01–99).
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: BTW number string without country prefix (e.g. ``104332189B12``).
+    """
+    while True:
+        digits = [rng.randint(0, 9) for _ in range(8)]
+        weights = [9, 8, 7, 6, 5, 4, 3, 2]
+        total = sum(d * w for d, w in zip(digits, weights))
+        check = total % 11
+        if check == 10:
+            continue  # invalid — retry
+        digits.append(check)
+        number = "".join(str(d) for d in digits)
+        suffix = str(rng.randint(1, 99)).zfill(2)
+        return f"{number}B{suffix}"
+
+
+# ─────────────────────────────────────────
+# Registry
+# ─────────────────────────────────────────
+
+VAT_GENERATORS: dict[str, callable] = {
+    "nl": _nl_btw,
+}
+
+
+def generate_vat(country_code: str, rng: random.Random) -> str | None:
+    """Generate a valid VAT number for the given country.
+
+    :param country_code: Lowercase ISO country code (e.g. ``"nl"``).
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: VAT string without country prefix, or ``None`` if no generator
+        is registered for this country.
+    """
+    generator = VAT_GENERATORS.get(country_code.lower())
+    if generator is None:
+        return None
+    return generator(rng)
