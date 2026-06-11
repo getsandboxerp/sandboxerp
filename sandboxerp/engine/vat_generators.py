@@ -60,8 +60,42 @@ def _nl_btw(rng: random.Random) -> str:
 # Registry
 # ─────────────────────────────────────────
 
+# ─────────────────────────────────────────
+# Portugal — NIF (Número de Identificação Fiscal)
+# ─────────────────────────────────────────
+
+
+def _pt_nif(rng: random.Random, is_company: bool = False) -> str:
+    """Generate a valid Portuguese NIF without country prefix.
+
+    Format: 9 digits (e.g. ``123456789``).
+
+    Algorithm (modulo 11):
+    - Weights [9, 8, 7, 6, 5, 4, 3, 2] applied to the first 8 digits.
+    - remainder = sum % 11
+    - check digit = 0 if remainder <= 1, else 11 - remainder.
+    - First digit: 1 or 2 for natural persons, 5 for legal entities.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :param is_company: When ``True``, first digit is 5 (legal entity).
+    :return: NIF string without country prefix (e.g. ``123456789``).
+    """
+    first = 5 if is_company else rng.choice([1, 2])
+    weights = [9, 8, 7, 6, 5, 4, 3, 2]
+    while True:
+        digits = [first] + [rng.randint(0, 9) for _ in range(7)]
+        total = sum(d * w for d, w in zip(digits, weights))
+        remainder = total % 11
+        check = 0 if remainder <= 1 else 11 - remainder
+        if check > 9:
+            continue  # invalid check digit — retry
+        digits.append(check)
+        return "".join(str(d) for d in digits)
+
+
 VAT_GENERATORS: dict[str, callable] = {
     "nl": _nl_btw,
+    "pt": _pt_nif,
 }
 
 

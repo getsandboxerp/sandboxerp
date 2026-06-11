@@ -1,0 +1,292 @@
+# Country Pack — Portugal
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: pt
+  name: Portugal
+  locale: pt_PT          # Faker locale for names, addresses, etc.
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_pt            # base: chart of accounts, taxes, fiscal positions
+  chart_of_accounts: l10n_pt
+  currency: EUR
+  language: pt_PT
+  country_code: PT
+  post_install:
+    - set_currency: EUR
+    - set_language: pt_PT
+    - set_country: PT
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: IVA
+  tax_rate: 0.23
+  tax_account: IVA a entregar ao Estado
+  id_label: NIF
+  id_format: "XXXXXXXXX"           # 9 digits (e.g. 123456789)
+  faker_person_id: vat_id           # Faker pt_PT method — generates PT + 9 digits
+  faker_company_id: vat_id          # same method for companies
+
+# ─────────────────────────────────────────
+# partner_fields
+# PT has no l10n_latam dependency. identification_type_name is left
+# empty so installer.py skips the l10n_latam.identification.type lookup.
+# No country-specific taxpayer fields are required for l10n_pt to allow
+# action_post — standard VAT field is sufficient.
+# vat_generators._pt_nif is used to generate valid mod-11 NIFs.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: "PT"                  # Odoo EU VAT format: PT + 9 digits
+  identification_type_name: ""      # no l10n_latam — installer skips lookup
+  company_taxpayer_field: ""        # no extra field required by l10n_pt
+  company_taxpayer_value: ""
+  person_taxpayer_field: ""
+  person_taxpayer_value: ""
+
+# ─────────────────────────────────────────
+# banks  (principais bancos Portugal — Banco de Portugal)
+# ─────────────────────────────────────────
+banks:
+  - code: "0010"
+    name: Caixa Geral de Depósitos
+    short: CGD
+    swift: CGDIPTPL
+  - code: "0018"
+    name: Santander Portugal
+    short: Santander
+    swift: BCOMPTPL
+  - code: "0033"
+    name: Millennium BCP
+    short: Millennium
+    swift: BAPIPTPL
+  - code: "0035"
+    name: Banco BPI
+    short: BPI
+    swift: BBPIPTPL
+  - code: "0036"
+    name: Novo Banco
+    short: Novo Banco
+    swift: BESCPTPL
+  - code: "0079"
+    name: Banco Montepio
+    short: Montepio
+    swift: MPIOPTPL
+  - code: "0269"
+    name: ING Portugal
+    short: ING
+    swift: INGBPTPL
+  - code: "0046"
+    name: Banco Activobank
+    short: ActivoBank
+    swift: ACTVPTPL
+  - code: "0008"
+    name: Banco Crédito Agrícola
+    short: Crédito Agrícola
+    swift: CCCMPTPL
+  - code: "0007"
+    name: Banco CTT
+    short: Banco CTT
+    swift: CTTVPTPL
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{street} {number}, {zip} {city}, {district}"
+  street_suffixes:
+    - Rua
+    - Avenida
+    - Travessa
+    - Largo
+    - Praça
+    - Alameda
+    - Calçada
+    - Beco
+    - Estrada
+    - Caminho
+  cities_by_district:
+    Lisboa:
+      - Lisboa
+      - Sintra
+      - Cascais
+      - Loures
+      - Amadora
+      - Odivelas
+      - Vila Franca de Xira
+    Porto:
+      - Porto
+      - Vila Nova de Gaia
+      - Matosinhos
+      - Gondomar
+      - Maia
+      - Valongo
+      - Braga
+    Setúbal:
+      - Setúbal
+      - Almada
+      - Barreiro
+      - Seixal
+      - Palmela
+      - Sesimbra
+    Braga:
+      - Braga
+      - Guimarães
+      - Barcelos
+      - Famalicão
+    Aveiro:
+      - Aveiro
+      - Oliveira de Azeméis
+      - São João da Madeira
+      - Ovar
+    Coimbra:
+      - Coimbra
+      - Figueira da Foz
+      - Leiria
+    Faro:
+      - Faro
+      - Portimão
+      - Lagos
+      - Albufeira
+      - Loulé
+    Évora:
+      - Évora
+      - Beja
+      - Portalegre
+    Santarém:
+      - Santarém
+      - Tomar
+      - Torres Novas
+    Viseu:
+      - Viseu
+      - Lamego
+    Açores:
+      - Ponta Delgada
+      - Angra do Heroísmo
+      - Horta
+    Madeira:
+      - Funchal
+      - Câmara de Lobos
+
+# ─────────────────────────────────────────
+# geography  (Layer 1 — 18 distritos + 2 regiões autónomas)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: LIS
+      name: Lisboa
+      capital: Lisboa
+      default: true
+    - code: POR
+      name: Porto
+      capital: Porto
+    - code: SET
+      name: Setúbal
+      capital: Setúbal
+    - code: BRA
+      name: Braga
+      capital: Braga
+    - code: AVE
+      name: Aveiro
+      capital: Aveiro
+    - code: COI
+      name: Coimbra
+      capital: Coimbra
+    - code: FAR
+      name: Faro
+      capital: Faro
+    - code: EVO
+      name: Évora
+      capital: Évora
+    - code: SAN
+      name: Santarém
+      capital: Santarém
+    - code: VIS
+      name: Viseu
+      capital: Viseu
+    - code: VCT
+      name: Viana do Castelo
+      capital: Viana do Castelo
+    - code: VRE
+      name: Vila Real
+      capital: Vila Real
+    - code: BRG
+      name: Bragança
+      capital: Bragança
+    - code: GUA
+      name: Guarda
+      capital: Guarda
+    - code: CAS
+      name: Castelo Branco
+      capital: Castelo Branco
+    - code: LEI
+      name: Leiria
+      capital: Leiria
+    - code: POR2
+      name: Portalegre
+      capital: Portalegre
+    - code: BEJ
+      name: Beja
+      capital: Beja
+    - code: ACO
+      name: Açores
+      capital: Ponta Delgada
+    - code: MAD
+      name: Madeira
+      capital: Funchal
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - S.A.
+    - Lda.
+    - Unipessoal Lda.
+    - S.A.S.
+    - CRL
+    - SGPS
+  economic_activities:
+    # CAE — Classificação Portuguesa das Actividades Económicas
+    - code: "47110"
+      description: "Comércio a retalho em supermercados e hipermercados"
+    - code: "47190"
+      description: "Outro comércio a retalho em estabelecimentos não especializados"
+    - code: "62010"
+      description: "Actividades de programação informática"
+    - code: "62020"
+      description: "Actividades de consultoria em informática"
+    - code: "69200"
+      description: "Actividades de contabilidade e auditoria"
+    - code: "69100"
+      description: "Actividades jurídicas"
+    - code: "70220"
+      description: "Actividades de consultoria para os negócios e a gestão"
+    - code: "41200"
+      description: "Construção de edifícios residenciais e não residenciais"
+    - code: "49410"
+      description: "Transportes rodoviários de mercadorias"
+    - code: "56101"
+      description: "Restaurantes"
+    - code: "45110"
+      description: "Comércio de veículos automóveis ligeiros"
+    - code: "46510"
+      description: "Comércio por grosso de computadores e equipamentos periféricos"
+    - code: "68200"
+      description: "Arrendamento de bens imobiliários"
+    - code: "10130"
+      description: "Fabricação de produtos à base de carne"
+    - code: "55111"
+      description: "Hotéis com restaurante"

@@ -54,6 +54,7 @@ _REGISTRY: list[PackMeta] = [
     PackMeta("country_cl", PackType.COUNTRY, "Chile (RUT, IVA, CLP)", countries=("cl",)),
     PackMeta("country_mx", PackType.COUNTRY, "Mexico (RFC, IVA, MXN)", countries=("mx",)),
     PackMeta("country_nl", PackType.COUNTRY, "Netherlands (BTW, EUR, nl_NL)", countries=("nl",)),
+    PackMeta("country_pt", PackType.COUNTRY, "Portugal (NIF, IVA, EUR, pt_PT)", countries=("pt",)),
     PackMeta("country_ar", PackType.COUNTRY, "Argentina (CUIT, IVA, ARS)", countries=("ar",)),
     PackMeta("country_co", PackType.COUNTRY, "Colombia (NIT, IVA, COP)", countries=("co",)),
     PackMeta("country_pe", PackType.COUNTRY, "Peru (RUC, IGV, PEN)", countries=("pe",)),
