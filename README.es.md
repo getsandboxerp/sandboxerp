@@ -2,7 +2,7 @@
 
 **Genera entornos Odoo completos y coherentes desde una spec YAML.**
 
-SandboxERP es una herramienta CLI open source pensada para Odoo partners, developers y equipos de QA — especialmente en LATAM. Levanta una instancia Odoo 17 completamente poblada en minutos, con datos realistas, localización correcta y comportamiento de negocio consistente.
+SandboxERP es una herramienta CLI open source pensada para Odoo partners, developers y equipos de QA. Levanta una instancia Odoo 17 completamente poblada en minutos, con datos realistas, localización correcta y comportamiento de negocio consistente.
 
 > Desarrollado por [Team360](https://team360.cl)
 
@@ -19,7 +19,7 @@ SandboxERP hace todo eso con un solo comando.
 ## Características
 
 - **Un comando** para generar un entorno Odoo 17 completamente poblado
-- **Country packs** — datos localizados: RUT/RFC, moneda, idioma, regiones, bancos
+- **Country packs** — datos localizados: RUT/RFC/BTW/NIF, moneda, idioma, regiones, bancos
 - **Industry packs** — categorías de productos, módulos y volúmenes de transacción según la industria
 - **Profiles** — escala desde `small` (50 clientes) hasta `enterprise` (2.000+)
 - **Reproducible** — flag `--seed` para generación determinista de datos
@@ -126,6 +126,9 @@ sandbox --help
 # Generar un entorno retail chileno (perfil small)
 sandbox generate --country cl --industry retail --profile small --seed 42
 
+# Generar un entorno retail holandés
+sandbox generate --country nl --industry retail --profile small --seed 42
+
 # Acceder a Odoo en http://localhost:8069
 # usuario: admin  |  contraseña: admin  |  base de datos: sandbox
 ```
@@ -158,15 +161,18 @@ sandbox generate --help
 
 ### Países
 
-| Código | País | Moneda | Idioma |
-|--------|------|--------|--------|
-| `cl` | Chile | CLP | es_CL |
+| Código | País | Moneda | Idioma | Tax ID |
+|--------|------|--------|--------|--------|
+| `cl` | Chile | CLP | es_CL | RUT |
+| `mx` | México | MXN | es_MX | RFC |
+| `nl` | Países Bajos | EUR | nl_NL | BTW-nummer |
+| `pt` | Portugal | EUR | pt_PT | NIF |
 
 ### Industrias
 
 | Nombre | Módulos Odoo |
 |--------|-------------|
-| `retail` | l10n_cl, l10n_cl_edi, sale_management, stock, … |
+| `retail` | sale_management, stock, account, purchase |
 
 ### Perfiles
 
@@ -181,12 +187,12 @@ sandbox generate --help
 
 ## Qué se genera
 
-Al ejecutar `sandbox generate --country cl --industry retail --profile small --seed 42`:
+Al ejecutar `sandbox generate --country nl --industry retail --profile small --seed 42`:
 
-- ✓ Instancia Odoo 17 con localización chilena (`l10n_cl`, `l10n_cl_edi`)
-- ✓ Idioma configurado en `es_CL`
-- ✓ Empresa configurada con moneda CLP y datos de Chile
-- ✓ 50 clientes + 8 proveedores (Faker `es_CL`, RUTs válidos)
+- ✓ Instancia Odoo 17 con localización holandesa (`l10n_nl`)
+- ✓ Idioma configurado en `nl_NL`, moneda EUR
+- ✓ Empresa configurada con datos de Países Bajos
+- ✓ 50 clientes + 8 proveedores con BTW-nummers válidos
 - ✓ 30 productos con SKUs, precios y márgenes por categoría
 - ✓ 50 órdenes de venta distribuidas en 12 meses con estacionalidad retail
 - ✓ Personas por partner (puntual, frecuente, alto valor, etc.)

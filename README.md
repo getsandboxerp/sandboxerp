@@ -2,7 +2,7 @@
 
 **Generate complete, coherent Odoo environments from a YAML spec.**
 
-SandboxERP is an open source CLI tool built for Odoo partners, developers, and QA teams — especially across LATAM. Spin up a fully populated Odoo 17 instance in minutes, with realistic data, proper localization, and consistent business behaviour.
+SandboxERP is an open source CLI tool built for Odoo partners, developers, and QA teams. Spin up a fully populated Odoo 17 instance in minutes, with realistic data, proper localization, and consistent business behaviour.
 
 > Built by [Team360](https://team360.cl)
 
@@ -46,7 +46,11 @@ If you need to install or upgrade Python, download it from [python.org](https://
 
 pip is included with Python 3.10+. Verify it is available:
 
-## CLI Reference
+```bash
+pip --version
+```
+
+### Docker
 
 **macOS / Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), which includes Docker Compose v2.
 
@@ -108,6 +112,9 @@ sandbox --help
 # Generate a Chilean retail environment (small profile)
 sandbox generate --country cl --industry retail --profile small --seed 42
 
+# Generate a Dutch retail environment
+sandbox generate --country nl --industry retail --profile small --seed 42
+
 # Access Odoo at http://localhost:8069
 # user: admin  |  password: admin  |  db: sandbox
 ```
@@ -140,15 +147,18 @@ sandbox generate --help
 
 ### Countries
 
-| Code | Country | Currency | Language |
-|------|---------|----------|----------|
-| `cl` | Chile | CLP | es_CL |
+| Code | Country | Currency | Language | Tax ID |
+|------|---------|----------|----------|--------|
+| `cl` | Chile | CLP | es_CL | RUT |
+| `mx` | Mexico | MXN | es_MX | RFC |
+| `nl` | Netherlands | EUR | nl_NL | BTW-nummer |
+| `pt` | Portugal | EUR | pt_PT | NIF |
 
 ### Industries
 
 | Name | Odoo Modules |
 |------|-------------|
-| `retail` | l10n_cl, l10n_cl_edi, sale_management, stock, … |
+| `retail` | sale_management, stock, account, purchase |
 
 ### Profiles
 
@@ -163,12 +173,12 @@ sandbox generate --help
 
 ## What Gets Generated
 
-Running `sandbox generate --country cl --industry retail --profile small --seed 42` produces:
+Running `sandbox generate --country nl --industry retail --profile small --seed 42` produces:
 
-- ✓ Odoo 17 instance with Chilean localization (`l10n_cl`, `l10n_cl_edi`)
-- ✓ Language set to `es_CL`
-- ✓ Company configured with CLP currency and Chile defaults
-- ✓ 50 customers + 8 suppliers (Faker `es_CL`, valid RUTs)
+- ✓ Odoo 17 instance with Dutch localization (`l10n_nl`)
+- ✓ Language set to `nl_NL`, currency EUR
+- ✓ Company configured with Netherlands defaults
+- ✓ 50 customers + 8 suppliers with valid BTW-nummers
 - ✓ 30 products with SKUs, prices, and category margins
 - ✓ 50 sale orders distributed across 12 months with retail seasonality
 - ✓ Per-partner personas (punctual, frequent, high-value, etc.)
