@@ -39,6 +39,7 @@ fiscal:
   id_format: "NLXXXXXXXXX B XX"    # NL + 9 digits + B + 2 digits (e.g. NL123456789B01)
   faker_person_id: ssn              # Faker nl_NL ssn → BSN (Burgerservicenummer)
   faker_company_id: ssn             # No dedicated company VAT method in Faker nl_NL
+  vat_format: "NL#########B##"      # numerify pattern — generates valid BTW-nummer format
 
 # ─────────────────────────────────────────
 # partner_fields

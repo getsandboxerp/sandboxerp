@@ -33,6 +33,7 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 
 from sandboxerp.engine.behaviour import generate_chain
+from sandboxerp.engine.vat_generators import generate_vat
 from sandboxerp.engine.odoo import OdooClient, OdooError
 from sandboxerp.engine.persona_engine import PersonaEngine
 from sandboxerp.engine.seasonality import distribute_volume
@@ -423,6 +424,7 @@ def _generate_partners(
     fiscal = country_pack.get("fiscal", {})
     person_rut_method = fiscal.get("faker_person_id", "ssn")
     company_rut_method = fiscal.get("faker_company_id", "ssn")
+    country_code_lower: str = country_pack["meta"].get("code", "").lower()
 
     country_ids = client.search(
         "res.country",
@@ -476,8 +478,12 @@ def _generate_partners(
     ) as progress:
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
-            raw_vat = getattr(fake, person_rut_method, fake.ssn)()
-            vat = vat_prefix + raw_vat.replace(".", "")
+            generated_vat = generate_vat(country_code_lower, rng=fake.random)
+            if generated_vat is not None:
+                vat = vat_prefix + generated_vat
+            else:
+                raw_vat = getattr(fake, person_rut_method, fake.ssn)()
+                vat = vat_prefix + raw_vat.replace(".", "")
             record = {
                 "name": fake.name(),
                 "customer_rank": 1,
@@ -502,8 +508,12 @@ def _generate_partners(
 
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
-            raw_vat = getattr(fake, company_rut_method, fake.ssn)()
-            vat = vat_prefix + raw_vat.replace(".", "")
+            generated_vat = generate_vat(country_code_lower, rng=fake.random)
+            if generated_vat is not None:
+                vat = vat_prefix + generated_vat
+            else:
+                raw_vat = getattr(fake, company_rut_method, fake.ssn)()
+                vat = vat_prefix + raw_vat.replace(".", "")
             record = {
                 "name": fake.company(),
                 "customer_rank": 0,
