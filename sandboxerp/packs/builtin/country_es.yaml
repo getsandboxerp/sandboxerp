@@ -1,0 +1,311 @@
+# Country Pack — Spain
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <https://team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: es
+  name: Spain
+  locale: es_ES
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_es
+  chart_of_accounts: l10n_es
+  currency: EUR
+  language: es_ES
+  country_code: ES
+  post_install:
+    - set_currency: EUR
+    - set_language: es_ES
+    - set_country: ES
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: IVA
+  tax_rate: 0.21
+  tax_account: IVA repercutido
+  id_label: NIF
+  id_format: "XXXXXXXXX"
+  faker_person_id: nif
+  faker_company_id: nif
+
+# ─────────────────────────────────────────
+# partner_fields
+# ES has no l10n_latam dependency.
+# vat_generators._es_nif / _es_cif used for valid control letter/digit.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: "ES"
+  identification_type_name: ""
+  company_taxpayer_field: ""
+  company_taxpayer_value: ""
+  person_taxpayer_field: ""
+  person_taxpayer_value: ""
+
+# ─────────────────────────────────────────
+# banks  (principales bancos España — Banco de España)
+# ─────────────────────────────────────────
+banks:
+  - code: "0049"
+    name: Banco Santander
+    short: Santander
+    swift: BSCHESMMXXX
+  - code: "0182"
+    name: BBVA
+    short: BBVA
+    swift: BBVAESMMXXX
+  - code: "2100"
+    name: CaixaBank
+    short: CaixaBank
+    swift: CAIXESBBXXX
+  - code: "0081"
+    name: Banco Sabadell
+    short: Sabadell
+    swift: BSABESBBXXX
+  - code: "0128"
+    name: Bankinter
+    short: Bankinter
+    swift: BKBKESMMXXX
+  - code: "2038"
+    name: Bankia (CaixaBank)
+    short: Bankia
+    swift: CAHMESMMXXX
+  - code: "0073"
+    name: Banco Openbank
+    short: Openbank
+    swift: OPENESMMXXX
+  - code: "1465"
+    name: ING España
+    short: ING
+    swift: INGDESMMXXX
+  - code: "0487"
+    name: Banco Mediolanum
+    short: Mediolanum
+    swift: BFIVESBBXXX
+  - code: "0238"
+    name: Banco de Crédito Social Cooperativo
+    short: Cajamar
+    swift: BCSCESMMXXX
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{street} {number}, {zip} {city}, {region}"
+  street_suffixes:
+    - Calle
+    - Avenida
+    - Plaza
+    - Paseo
+    - Carretera
+    - Ronda
+    - Travesía
+    - Camino
+    - Vía
+    - Callejón
+  cities_by_region:
+    Madrid:
+      - Madrid
+      - Alcalá de Henares
+      - Leganés
+      - Getafe
+      - Alcorcón
+      - Fuenlabrada
+      - Móstoles
+      - Torrejón de Ardoz
+    Cataluña:
+      - Barcelona
+      - Hospitalet de Llobregat
+      - Badalona
+      - Terrassa
+      - Sabadell
+      - Lleida
+      - Tarragona
+      - Girona
+    Andalucía:
+      - Sevilla
+      - Málaga
+      - Córdoba
+      - Granada
+      - Almería
+      - Cádiz
+      - Jaén
+      - Huelva
+    Comunidad Valenciana:
+      - Valencia
+      - Alicante
+      - Elche
+      - Castellón de la Plana
+      - Torrent
+    País Vasco:
+      - Bilbao
+      - Vitoria-Gasteiz
+      - San Sebastián
+      - Barakaldo
+    Galicia:
+      - Vigo
+      - A Coruña
+      - Ourense
+      - Santiago de Compostela
+      - Lugo
+    Castilla y León:
+      - Valladolid
+      - Burgos
+      - Salamanca
+      - León
+      - Segovia
+      - Ávila
+      - Zamora
+    Castilla-La Mancha:
+      - Albacete
+      - Ciudad Real
+      - Toledo
+      - Cuenca
+      - Guadalajara
+    Aragón:
+      - Zaragoza
+      - Huesca
+      - Teruel
+    Murcia:
+      - Murcia
+      - Cartagena
+      - Lorca
+    Asturias:
+      - Oviedo
+      - Gijón
+      - Avilés
+    Cantabria:
+      - Santander
+      - Torrelavega
+    La Rioja:
+      - Logroño
+      - Calahorra
+    Navarra:
+      - Pamplona
+      - Tudela
+    Extremadura:
+      - Badajoz
+      - Cáceres
+      - Mérida
+    Baleares:
+      - Palma
+      - Ibiza
+      - Mahón
+    Canarias:
+      - Las Palmas de Gran Canaria
+      - Santa Cruz de Tenerife
+      - La Laguna
+
+# ─────────────────────────────────────────
+# geography  (Layer 1 — 17 CCAA)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: MD
+      name: Madrid
+      capital: Madrid
+      default: true
+    - code: CT
+      name: Cataluña
+      capital: Barcelona
+    - code: AN
+      name: Andalucía
+      capital: Sevilla
+    - code: VC
+      name: Comunidad Valenciana
+      capital: Valencia
+    - code: PV
+      name: País Vasco
+      capital: Vitoria-Gasteiz
+    - code: GA
+      name: Galicia
+      capital: Santiago de Compostela
+    - code: CL
+      name: Castilla y León
+      capital: Valladolid
+    - code: CM
+      name: Castilla-La Mancha
+      capital: Toledo
+    - code: AR
+      name: Aragón
+      capital: Zaragoza
+    - code: MU
+      name: Murcia
+      capital: Murcia
+    - code: AS
+      name: Asturias
+      capital: Oviedo
+    - code: CB
+      name: Cantabria
+      capital: Santander
+    - code: RI
+      name: La Rioja
+      capital: Logroño
+    - code: NC
+      name: Navarra
+      capital: Pamplona
+    - code: EX
+      name: Extremadura
+      capital: Mérida
+    - code: IB
+      name: Baleares
+      capital: Palma
+    - code: CN
+      name: Canarias
+      capital: Las Palmas de Gran Canaria
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - S.L.
+    - S.A.
+    - S.L.U.
+    - S.A.U.
+    - S.C.
+    - S.Coop.
+    - S.L.L.
+  economic_activities:
+    # CNAE 2009
+    - code: "4711"
+      description: "Comercio al por menor en establecimientos no especializados"
+    - code: "4719"
+      description: "Otro comercio al por menor en establecimientos no especializados"
+    - code: "6201"
+      description: "Actividades de programación informática"
+    - code: "6202"
+      description: "Actividades de consultoría informática"
+    - code: "6920"
+      description: "Actividades de contabilidad, teneduría de libros y auditoría"
+    - code: "6910"
+      description: "Actividades jurídicas"
+    - code: "7022"
+      description: "Consultoría de gestión empresarial"
+    - code: "4120"
+      description: "Construcción de edificios residenciales y no residenciales"
+    - code: "4941"
+      description: "Transporte de mercancías por carretera"
+    - code: "5610"
+      description: "Restaurantes y puestos de comidas"
+    - code: "4511"
+      description: "Venta de automóviles y vehículos de motor ligeros"
+    - code: "4651"
+      description: "Comercio al por mayor de ordenadores y equipos periféricos"
+    - code: "6820"
+      description: "Alquiler de bienes inmobiliarios por cuenta propia"
+    - code: "1013"
+      description: "Elaboración de productos cárnicos"
+    - code: "5510"
+      description: "Hoteles y alojamientos similares"

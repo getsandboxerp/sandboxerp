@@ -93,10 +93,67 @@ def _pt_nif(rng: random.Random, is_company: bool = False) -> str:
         return "".join(str(d) for d in digits)
 
 
+def _es_nif(rng: random.Random) -> str:
+    """Generate a valid Spanish NIF (persona física) without country prefix.
+
+    Format: 8 digits + 1 control letter (e.g. ``12345678Z``).
+
+    Algorithm:
+    - number mod 23 → index into _NIF_LETTERS.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: NIF string without country prefix (e.g. ``12345678Z``).
+    """
+    number = rng.randint(10000000, 99999999)
+    letter = _NIF_LETTERS[number % 23]
+    return f"{number}{letter}"
+
+
+def _es_cif(rng: random.Random) -> str:
+    """Generate a valid Spanish CIF (persona jurídica) without country prefix.
+
+    Format: 1 letter + 7 digits + 1 control character (e.g. ``B12345670``).
+
+    Algorithm:
+    - Sum odd-position digits (1-based) directly.
+    - Sum even-position digits after doubling (if >= 10, sum its digits).
+    - Total sum → control = (10 - (total % 10)) % 10.
+    - Control char: letter for org types P Q S W, digit otherwise.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: CIF string without country prefix (e.g. ``B12345670``).
+    """
+    _CIF_LETTERS = "JABCDEFGHI"
+    _ORG_TYPES = "ABCDEFGHJNPQRSUVW"
+    _LETTER_CONTROL_TYPES = "PQSW"
+
+    org = rng.choice(_ORG_TYPES)
+    digits = [rng.randint(0, 9) for _ in range(7)]
+
+    odd_sum = sum(digits[i] for i in range(0, 7, 2))
+    even_sum = 0
+    for i in range(1, 7, 2):
+        d = digits[i] * 2
+        even_sum += d if d < 10 else d - 9
+
+    total = odd_sum + even_sum
+    control_digit = (10 - (total % 10)) % 10
+
+    if org in _LETTER_CONTROL_TYPES:
+        control = _CIF_LETTERS[control_digit]
+    else:
+        control = str(control_digit)
+
+    return f"{org}{''.join(str(d) for d in digits)}{control}"
+
+
 VAT_GENERATORS: dict[str, callable] = {
     "nl": _nl_btw,
     "pt": _pt_nif,
+    "es": _es_nif,
 }
+
+
 
 
 def generate_vat(country_code: str, rng: random.Random) -> str | None:
@@ -111,3 +168,12 @@ def generate_vat(country_code: str, rng: random.Random) -> str | None:
     if generator is None:
         return None
     return generator(rng)
+
+
+# ─────────────────────────────────────────
+# Spain — NIF (persona física) y CIF (persona jurídica)
+# ─────────────────────────────────────────
+
+_NIF_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE"
+
+
