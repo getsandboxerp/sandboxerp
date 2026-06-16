@@ -638,6 +638,7 @@ def _months_in_window(window: ObservationWindow) -> list[int]:
 def _execute_so_chain(
     client: OdooClient,
     so_id: int,
+    invoice_date: str | None = None,
 ) -> dict:
     """Execute the full causal chain for a Sale Order in Odoo 17.
 
@@ -780,6 +781,8 @@ def _execute_so_chain(
 
     # ── Step 4: post invoice ──────────────────────────────────────────────
     try:
+        if invoice_date and inv_id:
+            client.write("account.move", [inv_id], {"invoice_date": invoice_date})
         client.execute("account.move", "action_post", [inv_id])
         result["posted"] = True
     except OdooError:
@@ -969,7 +972,7 @@ def _generate_transactions(
                     created_so += 1
 
                     # Execute causal chain: confirm → deliver → invoice → pay
-                    chain_result = _execute_so_chain(client, so_id)
+                    chain_result = _execute_so_chain(client, so_id, invoice_date=so_tx.as_odoo_date())
                     if chain_result["confirmed"]:
                         confirmed_so += 1
                     if chain_result["invoiced"]:
