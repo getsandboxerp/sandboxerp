@@ -32,6 +32,17 @@ _REPORTABLE_MODULES = [
     "sale_management", "purchase", "stock", "account",
 ]
 
+# Length to truncate ISO date strings to for year-month comparisons
+# (e.g. "2025-03-15" -> "2025-03"). Used consistently for both SO
+# date_order and invoice invoice_date so date-range comparisons are
+# apples-to-apples.
+_YEAR_MONTH_LEN = 7
+
+# Heuristics for detecting the invoice_date-defaults-to-today() bug
+# (see _print_invoice_date_range). Tunable without touching logic.
+_INVOICE_DATE_MIN_SAMPLE = 5  # below this, a single shared date is not unusual
+_INVOICE_DATE_COLLAPSE_RATIO = 0.5  # share of invoices on one date to flag as collapsed
+
 
 def run_health_check(
     client: OdooClient,
@@ -56,6 +67,7 @@ def run_health_check(
         _print_modules(client)
         _print_master_data(metrics)
         _print_date_range_and_seasonality(client)
+        _print_invoice_date_range(client)
         _print_causal_chain(metrics)
         _print_total_invoiced(client)
         _print_top_partner(client)
@@ -143,7 +155,7 @@ def _print_date_range_and_seasonality(client: OdooClient) -> None:
     if not sos:
         return
 
-    months: Counter = Counter(so["date_order"][:7] for so in sos)
+    months: Counter = Counter(so["date_order"][:_YEAR_MONTH_LEN] for so in sos)
     date_from = min(months)
     date_to = max(months)
     n_months = len(months)
@@ -158,6 +170,90 @@ def _print_date_range_and_seasonality(client: OdooClient) -> None:
         f"{_label('seasonality')}"
         f"peak: {peak_month} ({peak_count})  ·  low: {low_month} ({low_count})"
     )
+
+
+def _print_invoice_date_range(client: OdooClient) -> None:
+    """Print invoice date range and flag mismatches against SO dates.
+
+    This is the validation that would have caught the v0.2.7 invoice_date
+    bug: Odoo 17 defaults ``invoice_date`` to ``today()`` on ``action_post``
+    when it isn't set explicitly, so a broken environment shows invoices
+    clustered on the generation date instead of spread across the Time
+    Engine's intended range.
+
+    Flags two conditions:
+
+    - Unique invoice dates collapsing to very few values relative to
+      invoice count (suggests defaulted dates).
+    - Invoice date range not overlapping the SO date range at all.
+
+    :param client: Authenticated Odoo client.
+    """
+    invs = client.search_read(
+        "account.move",
+        [["move_type", "=", "out_invoice"], ["state", "=", "posted"]],
+        ["invoice_date"],
+    )
+    if not invs:
+        console.print(
+            f"{_label('invoice dates')}"
+            f"[dim]ℹ no posted invoices yet[/dim]"
+        )
+        return
+
+    inv_dates = [i["invoice_date"] for i in invs if i.get("invoice_date")]
+    if not inv_dates:
+        console.print(
+            f"{_label('invoice dates')}"
+            f"[yellow]⚠[/yellow] posted invoices found but invoice_date is unset on all of them"
+        )
+        return
+
+    unique_dates = sorted(set(inv_dates))
+    date_from = unique_dates[0]
+    date_to = unique_dates[-1]
+    n_unique = len(unique_dates)
+    n_invoices = len(inv_dates)
+
+    # Heuristic: if most invoices share the same date and there are more
+    # than a handful of invoices, that's the today()-default signature.
+    most_common_date, most_common_count = Counter(inv_dates).most_common(1)[0]
+    collapsed = (
+        n_invoices >= _INVOICE_DATE_MIN_SAMPLE
+        and most_common_count / n_invoices > _INVOICE_DATE_COLLAPSE_RATIO
+    )
+
+    sos = client.search_read(
+        "sale.order", [["state", "=", "sale"]], ["date_order"]
+    )
+    so_dates = (
+        sorted(so["date_order"][:_YEAR_MONTH_LEN] for so in sos) if sos else []
+    )
+    so_from = so_dates[0] if so_dates else None
+    so_to = so_dates[-1] if so_dates else None
+
+    inv_from_ym = date_from[:_YEAR_MONTH_LEN]
+    inv_to_ym = date_to[:_YEAR_MONTH_LEN]
+    range_mismatch = bool(
+        so_from and so_to and (inv_to_ym < so_from or inv_from_ym > so_to)
+    )
+
+    if collapsed or range_mismatch:
+        reason = (
+            f"{most_common_count}/{n_invoices} invoices share date {most_common_date}"
+            if collapsed
+            else f"invoice range [{date_from} → {date_to}] doesn't overlap SO range [{so_from} → {so_to}]"
+        )
+        console.print(
+            f"{_label('invoice dates')}"
+            f"[yellow]⚠[/yellow] {date_from} → {date_to}  ({n_unique} unique / {n_invoices} invoices) "
+            f"— possible invoice_date default bug: {reason}"
+        )
+    else:
+        console.print(
+            f"{_label('invoice dates')}"
+            f"[green]✓[/green] {date_from} → {date_to}  ({n_unique} unique / {n_invoices} invoices)"
+        )
 
 
 def _print_causal_chain(metrics: dict) -> None:
@@ -298,7 +394,7 @@ def _print_dataset_hash(client: OdooClient) -> None:
     )
     so_count = len(sos)
     total = sum(i["amount_total"] for i in invs)
-    dates = sorted(so["date_order"][:7] for so in sos)
+    dates = sorted(so["date_order"][:_YEAR_MONTH_LEN] for so in sos)
     date_from = dates[0] if dates else ""
     date_to = dates[-1] if dates else ""
 
