@@ -9,7 +9,7 @@ a summary of the generated environment. Called by
 :func:`~sandboxerp.engine.generator.generate_environment` after
 :func:`~sandboxerp.engine.installer.install` completes.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@ Handles all Docker interactions: verification, image pulling,
 container lifecycle (create, start, stop, destroy), and
 docker-compose generation for Odoo + PostgreSQL environments.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

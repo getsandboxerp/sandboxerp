@@ -24,7 +24,7 @@ Examples::
     sandbox generate --country cl --industry retail --profile small \\
         --seed 42 --bind 0.0.0.0 --port 8069
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 import typer

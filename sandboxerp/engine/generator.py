@@ -16,7 +16,7 @@ Orchestrates the full generation pipeline:
 8. Hand off to :mod:`sandboxerp.engine.installer` for module installation
    and synthetic data generation.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

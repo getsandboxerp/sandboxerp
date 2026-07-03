@@ -18,7 +18,7 @@ Examples::
     uid = client.authenticate("sandbox", "admin", "admin")
     partner_id = client.create("res.partner", {"name": "Acme SpA"})
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

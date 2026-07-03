@@ -5,7 +5,7 @@ Validates pack licenses and manages feature gating for premium tiers.
 The CLI core is always free; premium packs (Chaos, Snapshot/Restore)
 require a valid license key verified against the licensing server.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations
