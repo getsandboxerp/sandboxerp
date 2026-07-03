@@ -1,0 +1,312 @@
+# Country Pack — France
+# Layers: 1 (country) + 2 (localization)
+# Author: Hector Colina / Team360 <hector.colina@team360.cl>
+# SPDX-License-Identifier: MIT
+
+# ─────────────────────────────────────────
+# meta
+# ─────────────────────────────────────────
+meta:
+  code: fr
+  name: France
+  locale: fr_FR
+  layers: [1, 2]
+
+# ─────────────────────────────────────────
+# localization  (Layer 2)
+# ─────────────────────────────────────────
+localization:
+  odoo_modules:
+    install_order:
+      - l10n_fr
+  chart_of_accounts: l10n_fr
+  currency: EUR
+  language: fr_FR
+  country_code: FR
+  post_install:
+    - set_currency: EUR
+    - set_language: fr_FR
+    - set_country: FR
+
+# ─────────────────────────────────────────
+# fiscal  (Layer 1)
+# ─────────────────────────────────────────
+fiscal:
+  tax_name: TVA
+  tax_rate: 0.20
+  tax_account: TVA collectée
+  id_label: SIRET
+  id_format: "XXXXXXXXXXXXXX"
+  faker_person_id: siret
+  faker_company_id: siret
+  vat_format: "__generator__"
+
+# ─────────────────────────────────────────
+# partner_fields
+# FR has no l10n_latam dependency.
+# vat_generators._fr_siret used for valid Luhn SIRET numbers.
+# Note: La Poste (SIREN 356000000) uses a non-standard checksum —
+# excluded from generation; see vat_generators._FR_LAPOSTE_SIREN.
+# ─────────────────────────────────────────
+partner_fields:
+  vat_prefix: "FR"
+  identification_type_name: ""
+  company_taxpayer_field: ""
+  company_taxpayer_value: ""
+  person_taxpayer_field: ""
+  person_taxpayer_value: ""
+
+# ─────────────────────────────────────────
+# banks  (principales banques France — Banque de France)
+# ─────────────────────────────────────────
+banks:
+  - code: "30004"
+    name: BNP Paribas
+    short: BNP
+    swift: BNPAFRPPXXX
+  - code: "30002"
+    name: Crédit Agricole
+    short: Crédit Agricole
+    swift: AGRIFRPPXXX
+  - code: "30006"
+    name: Société Générale
+    short: SocGen
+    swift: SOGEFRPPXXX
+  - code: "30003"
+    name: Crédit Mutuel
+    short: Crédit Mutuel
+    swift: CMCIFRPPXXX
+  - code: "10278"
+    name: La Banque Postale
+    short: La Postale
+    swift: PSSTFRPPXXX
+  - code: "30077"
+    name: Banque Populaire
+    short: Banque Pop
+    swift: CCBPFRPPXXX
+  - code: "13106"
+    name: Caisse d'Épargne
+    short: Caisse Épargne
+    swift: CEPAFRPP750
+  - code: "30056"
+    name: CIC
+    short: CIC
+    swift: CMCIFRPPXXX
+  - code: "14518"
+    name: LCL
+    short: LCL
+    swift: CRLYFRPPXXX
+  - code: "30027"
+    name: HSBC France
+    short: HSBC
+    swift: HSBCFRPPXXX
+
+# ─────────────────────────────────────────
+# addresses
+# ─────────────────────────────────────────
+addresses:
+  format: "{number} {street}, {zip} {city}"
+  street_suffixes:
+    - Rue
+    - Avenue
+    - Boulevard
+    - Place
+    - Impasse
+    - Allée
+    - Chemin
+    - Route
+    - Voie
+    - Passage
+  cities_by_region:
+    Île-de-France:
+      - Paris
+      - Boulogne-Billancourt
+      - Saint-Denis
+      - Argenteuil
+      - Montreuil
+      - Versailles
+      - Nanterre
+      - Créteil
+    Auvergne-Rhône-Alpes:
+      - Lyon
+      - Grenoble
+      - Saint-Étienne
+      - Clermont-Ferrand
+      - Villeurbanne
+      - Annecy
+      - Chambéry
+      - Valence
+    Nouvelle-Aquitaine:
+      - Bordeaux
+      - Limoges
+      - Poitiers
+      - Pau
+      - Bayonne
+      - La Rochelle
+      - Angoulême
+      - Périgueux
+    Occitanie:
+      - Toulouse
+      - Montpellier
+      - Nîmes
+      - Perpignan
+      - Béziers
+      - Narbonne
+      - Albi
+      - Carcassonne
+    Hauts-de-France:
+      - Lille
+      - Amiens
+      - Roubaix
+      - Tourcoing
+      - Dunkerque
+      - Calais
+      - Valenciennes
+      - Arras
+    Grand Est:
+      - Strasbourg
+      - Reims
+      - Metz
+      - Nancy
+      - Mulhouse
+      - Colmar
+      - Troyes
+      - Châlons-en-Champagne
+    Provence-Alpes-Côte d'Azur:
+      - Marseille
+      - Nice
+      - Toulon
+      - Aix-en-Provence
+      - Avignon
+      - Cannes
+      - Antibes
+      - La Seyne-sur-Mer
+    Pays de la Loire:
+      - Nantes
+      - Angers
+      - Le Mans
+      - Saint-Nazaire
+      - Laval
+      - La Roche-sur-Yon
+    Normandie:
+      - Rouen
+      - Caen
+      - Le Havre
+      - Cherbourg-en-Cotentin
+      - Évreux
+      - Alençon
+    Bretagne:
+      - Rennes
+      - Brest
+      - Quimper
+      - Lorient
+      - Vannes
+      - Saint-Brieuc
+    Centre-Val de Loire:
+      - Orléans
+      - Tours
+      - Bourges
+      - Blois
+      - Chartres
+      - Châteauroux
+    Bourgogne-Franche-Comté:
+      - Dijon
+      - Besançon
+      - Belfort
+      - Chalon-sur-Saône
+      - Mâcon
+      - Auxerre
+    Corse:
+      - Ajaccio
+      - Bastia
+
+# ─────────────────────────────────────────
+# geography  (Layer 1 — 13 régions métropolitaines + Corse)
+# ─────────────────────────────────────────
+geography:
+  regions:
+    - code: IDF
+      name: Île-de-France
+      capital: Paris
+      default: true
+    - code: ARA
+      name: Auvergne-Rhône-Alpes
+      capital: Lyon
+    - code: NAQ
+      name: Nouvelle-Aquitaine
+      capital: Bordeaux
+    - code: OCC
+      name: Occitanie
+      capital: Toulouse
+    - code: HDF
+      name: Hauts-de-France
+      capital: Lille
+    - code: GES
+      name: Grand Est
+      capital: Strasbourg
+    - code: PAC
+      name: Provence-Alpes-Côte d'Azur
+      capital: Marseille
+    - code: PDL
+      name: Pays de la Loire
+      capital: Nantes
+    - code: NOR
+      name: Normandie
+      capital: Rouen
+    - code: BRE
+      name: Bretagne
+      capital: Rennes
+    - code: CVL
+      name: Centre-Val de Loire
+      capital: Orléans
+    - code: BFC
+      name: Bourgogne-Franche-Comté
+      capital: Dijon
+    - code: COR
+      name: Corse
+      capital: Ajaccio
+
+# ─────────────────────────────────────────
+# company
+# ─────────────────────────────────────────
+company:
+  name_suffixes:
+    - SAS
+    - SARL
+    - SA
+    - SNC
+    - EURL
+    - SCI
+    - SASU
+  economic_activities:
+    # NAF/APE codes (INSEE)
+    - code: "4711A"
+      description: "Supermarché"
+    - code: "4711B"
+      description: "Hypermarché"
+    - code: "4719A"
+      description: "Grands magasins"
+    - code: "6201Z"
+      description: "Programmation informatique"
+    - code: "6202A"
+      description: "Conseil en systèmes et logiciels informatiques"
+    - code: "6920Z"
+      description: "Activités comptables"
+    - code: "6910Z"
+      description: "Activités juridiques"
+    - code: "7022Z"
+      description: "Conseil pour les affaires et autres conseils de gestion"
+    - code: "4120A"
+      description: "Construction de maisons individuelles"
+    - code: "4941A"
+      description: "Transports routiers de fret interurbains"
+    - code: "5610A"
+      description: "Restauration traditionnelle"
+    - code: "4511Z"
+      description: "Commerce de voitures et de véhicules automobiles légers"
+    - code: "4651Z"
+      description: "Commerce de gros d'ordinateurs et équipements périphériques"
+    - code: "6820A"
+      description: "Location de logements"
+    - code: "5510Z"
+      description: "Hôtels et hébergement similaire"
