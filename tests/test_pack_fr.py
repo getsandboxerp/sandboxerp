@@ -142,13 +142,17 @@ class TestFRSIRENGenerator:
         generated = {_fr_siren(rng) for _ in range(1000)}
         assert "356000000" not in generated
 
-    def test_generate_vat_returns_siret_for_fr(self):
-        """generate_vat('fr') returns a 14-digit SIRET (not a 9-digit SIREN)."""
+    def test_generate_vat_returns_fr_vat(self):
+        """generate_vat('fr') returns an 11-char TVA intracommunautaire number.
+
+        Format: 2-digit key + 9-digit SIREN (not a 14-digit SIRET).
+        """
         from sandboxerp.engine.vat_generators import generate_vat
         rng = random.Random(42)
         result = generate_vat("fr", rng)
         assert result is not None
-        assert len(result) == 14
+        assert len(result) == 11
+        assert result.isdigit()
 
 
 # ---------------------------------------------------------------------------

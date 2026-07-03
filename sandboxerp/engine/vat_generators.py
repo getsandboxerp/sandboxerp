@@ -152,7 +152,7 @@ def _es_cif(rng: random.Random) -> str:
 
 
 # ─────────────────────────────────────────
-# France — SIREN / SIRET
+# France — SIREN / SIRET / TVA intracommunautaire
 # ─────────────────────────────────────────
 
 # SIREN of La Poste — uses a non-standard checksum (sum of all digits
@@ -175,13 +175,7 @@ def _luhn_checksum(digits: list[int]) -> int:
         **without** the checksum digit.
     :return: Single checksum digit (0–9).
     """
-    # Reverse and apply Luhn doubling to alternating digits starting from
-    # position 1 (0-indexed from the right of the *complete* number, so
-    # position 0 from the right is the checksum digit itself — treated as
-    # "odd" position, i.e. not doubled).
     total = 0
-    # We process from right to left; the checksum digit is at position 0
-    # (rightmost), so existing digits start at position 1.
     for i, d in enumerate(reversed(digits)):
         pos = i + 1  # position from the right in the complete number
         if pos % 2 == 1:  # odd positions (from the right) are doubled
@@ -240,6 +234,25 @@ def _fr_siret(rng: random.Random) -> str:
     return siren + "".join(str(d) for d in nic_base) + str(check)
 
 
+def _fr_vat(rng: random.Random) -> str:
+    """Generate a valid French TVA intracommunautaire number (without FR prefix).
+
+    Format: 2-digit key + 9-digit SIREN (11 chars total, e.g. ``61775670417``).
+
+    The 2-digit key is derived from the SIREN using the official DGFiP formula:
+        key = (12 + 3 x (SIREN mod 97)) mod 97
+
+    This is what Odoo expects in the ``vat`` field for French partners —
+    not the SIRET (14 digits) nor the SIREN alone (9 digits).
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: TVA string without country prefix (e.g. ``61775670417``).
+    """
+    siren = _fr_siren(rng)
+    key = (12 + 3 * (int(siren) % 97)) % 97
+    return f"{key:02d}{siren}"
+
+
 # ─────────────────────────────────────────
 # Registry
 # ─────────────────────────────────────────
@@ -248,7 +261,7 @@ VAT_GENERATORS: dict[str, callable] = {
     "nl": _nl_btw,
     "pt": _pt_nif,
     "es": _es_nif,
-    "fr": _fr_siret,  # SIRET is the establishment-level identifier used in Odoo
+    "fr": _fr_vat,  # TVA intracommunautaire: 2-digit key + 9-digit SIREN
 }
 
 
