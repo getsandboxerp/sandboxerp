@@ -57,10 +57,6 @@ def _nl_btw(rng: random.Random) -> str:
 
 
 # ─────────────────────────────────────────
-# Registry
-# ─────────────────────────────────────────
-
-# ─────────────────────────────────────────
 # Portugal — NIF (Número de Identificação Fiscal)
 # ─────────────────────────────────────────
 
@@ -91,6 +87,14 @@ def _pt_nif(rng: random.Random, is_company: bool = False) -> str:
             continue  # invalid check digit — retry
         digits.append(check)
         return "".join(str(d) for d in digits)
+
+
+# ─────────────────────────────────────────
+# Spain — NIF (persona física) y CIF (persona jurídica)
+# ─────────────────────────────────────────
+
+# Control letter table for NIF — index = number % 23.
+_NIF_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE"
 
 
 def _es_nif(rng: random.Random) -> str:
@@ -147,13 +151,105 @@ def _es_cif(rng: random.Random) -> str:
     return f"{org}{''.join(str(d) for d in digits)}{control}"
 
 
+# ─────────────────────────────────────────
+# France — SIREN / SIRET
+# ─────────────────────────────────────────
+
+# SIREN of La Poste — uses a non-standard checksum (sum of all digits
+# divisible by 5 instead of Luhn). We never generate this SIREN in
+# synthetic data, but the validator must handle it when reading real data.
+_FR_LAPOSTE_SIREN = "356000000"
+
+# Length constants — defined as module-level constants to avoid magic numbers.
+_FR_SIREN_LEN = 9
+_FR_SIRET_LEN = 14  # SIREN (9) + NIC (5)
+
+
+def _luhn_checksum(digits: list[int]) -> int:
+    """Compute the Luhn checksum digit for a sequence of digits.
+
+    The checksum digit is chosen so that appending it to *digits* makes
+    the full number pass the Luhn validation (sum divisible by 10).
+
+    :param digits: List of int digits (0–9), most significant first,
+        **without** the checksum digit.
+    :return: Single checksum digit (0–9).
+    """
+    # Reverse and apply Luhn doubling to alternating digits starting from
+    # position 1 (0-indexed from the right of the *complete* number, so
+    # position 0 from the right is the checksum digit itself — treated as
+    # "odd" position, i.e. not doubled).
+    total = 0
+    # We process from right to left; the checksum digit is at position 0
+    # (rightmost), so existing digits start at position 1.
+    for i, d in enumerate(reversed(digits)):
+        pos = i + 1  # position from the right in the complete number
+        if pos % 2 == 1:  # odd positions (from the right) are doubled
+            doubled = d * 2
+            total += doubled if doubled < 10 else doubled - 9
+        else:
+            total += d
+    check = (10 - (total % 10)) % 10
+    return check
+
+
+def _fr_siren(rng: random.Random) -> str:
+    """Generate a valid French SIREN number.
+
+    Format: 9 digits validated by the Luhn algorithm (e.g. ``404833048``).
+
+    The first 8 digits are random; the 9th (rightmost) is the Luhn
+    checksum digit. La Poste's reserved SIREN (``356000000``) is
+    excluded from the generation space.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: SIREN string (9 digits, no spaces).
+    """
+    while True:
+        base = [rng.randint(0, 9) for _ in range(_FR_SIREN_LEN - 1)]
+        check = _luhn_checksum(base)
+        siren = "".join(str(d) for d in base) + str(check)
+        if siren == _FR_LAPOSTE_SIREN:
+            continue  # exclude La Poste's reserved SIREN
+        return siren
+
+
+def _fr_siret(rng: random.Random) -> str:
+    """Generate a valid French SIRET number.
+
+    Format: 14 digits = SIREN (9) + NIC (5), validated by the Luhn
+    algorithm over all 14 digits (e.g. ``40483304800038``).
+
+    A valid SIRET requires both:
+    - The full 14-digit number to pass Luhn.
+    - The embedded 9-digit SIREN to pass Luhn (guaranteed here since
+      we derive the SIRET from a valid SIREN).
+
+    La Poste establishments (SIREN ``356000000``) use a non-standard
+    checksum (sum of digits divisible by 5) — excluded from generation.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: SIRET string (14 digits, no spaces).
+    """
+    siren = _fr_siren(rng)  # always a valid SIREN (9 digits)
+    siren_digits = [int(c) for c in siren]
+    # Generate 4 free NIC digits; the 5th (checksum) makes the full 14
+    # digits pass Luhn.
+    nic_base = [rng.randint(0, 9) for _ in range(4)]
+    check = _luhn_checksum(siren_digits + nic_base)
+    return siren + "".join(str(d) for d in nic_base) + str(check)
+
+
+# ─────────────────────────────────────────
+# Registry
+# ─────────────────────────────────────────
+
 VAT_GENERATORS: dict[str, callable] = {
     "nl": _nl_btw,
     "pt": _pt_nif,
     "es": _es_nif,
+    "fr": _fr_siret,  # SIRET is the establishment-level identifier used in Odoo
 }
-
-
 
 
 def generate_vat(country_code: str, rng: random.Random) -> str | None:
@@ -168,12 +264,3 @@ def generate_vat(country_code: str, rng: random.Random) -> str | None:
     if generator is None:
         return None
     return generator(rng)
-
-
-# ─────────────────────────────────────────
-# Spain — NIF (persona física) y CIF (persona jurídica)
-# ─────────────────────────────────────────
-
-_NIF_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE"
-
-
