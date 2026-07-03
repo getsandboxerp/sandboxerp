@@ -254,6 +254,43 @@ def _fr_vat(rng: random.Random) -> str:
 
 
 # ─────────────────────────────────────────
+# Colombia — NIT (Número de Identificación Tributaria)
+# ─────────────────────────────────────────
+
+# Weights for the DIAN mod-11 algorithm, applied left to right
+# over the 9 base digits of the NIT (Orden Administrativa 4, 1989).
+_CO_NIT_WEIGHTS = [41, 37, 29, 23, 19, 17, 13, 7, 3]
+
+
+def _co_nit(rng: random.Random) -> str:
+    """Generate a valid Colombian NIT with verification digit (without CO prefix).
+
+    Format: 9 digits + hyphen + 1 verification digit (e.g. ``900123456-7``).
+
+    This is the format Odoo expects in the ``vat`` field for Colombian partners
+    when the identification type is NIT, as documented in the official Odoo 17
+    Colombia localization guide.
+
+    Algorithm (DIAN Orden Administrativa 4, 1989 — mod-11 with prime weights):
+    - Multiply each of the 9 base digits (left to right) by the corresponding
+      weight from _CO_NIT_WEIGHTS: [41, 37, 29, 23, 19, 17, 13, 7, 3].
+    - Sum all products.
+    - remainder = sum % 11
+    - If remainder == 0 or remainder == 1 → DV = remainder
+    - If remainder >= 2 → DV = 11 - remainder
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: NIT string without country prefix (e.g. ``900123456-7``).
+    """
+    digits = [rng.randint(0, 9) for _ in range(len(_CO_NIT_WEIGHTS))]
+    total = sum(d * w for d, w in zip(digits, _CO_NIT_WEIGHTS))
+    remainder = total % 11
+    dv = remainder if remainder <= 1 else 11 - remainder
+    base = "".join(str(d) for d in digits)
+    return f"{base}-{dv}"
+
+
+# ─────────────────────────────────────────
 # Registry
 # ─────────────────────────────────────────
 
@@ -262,6 +299,7 @@ VAT_GENERATORS: dict[str, callable] = {
     "pt": _pt_nif,
     "es": _es_nif,
     "fr": _fr_vat,  # TVA intracommunautaire: 2-digit key + 9-digit SIREN
+    "co": _co_nit,  # NIT: 9 digits + hyphen + verification digit (DIAN mod-11)
 }
 
 
