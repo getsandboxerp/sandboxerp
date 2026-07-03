@@ -5,7 +5,7 @@ Provides typed dataclasses that represent a Compose file structure and
 a renderer that serialises them to YAML. This keeps template logic
 separate from the Docker engine so each piece can be tested in isolation.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

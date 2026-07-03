@@ -18,7 +18,7 @@ Orchestrates the post-Docker phase of environment generation:
 This module is called by :mod:`sandboxerp.engine.generator` once the
 Docker environment is up and Odoo is responding on its HTTP port.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

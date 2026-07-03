@@ -25,7 +25,7 @@ Adding a new industry profile
 Add an entry to :data:`INDUSTRY_PROFILES` following the same structure.
 The weights do **not** need to sum to 12; they are relative multipliers.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

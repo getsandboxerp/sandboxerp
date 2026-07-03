@@ -11,7 +11,7 @@ Example::
 
     sandbox stop
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 import typer

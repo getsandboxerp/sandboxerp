@@ -4,7 +4,7 @@ Pack registry for SandboxERP.
 Maintains an in-memory catalogue of available packs (country, industry,
 chaos) and exposes helpers to list and resolve them by name.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

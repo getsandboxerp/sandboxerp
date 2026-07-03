@@ -15,7 +15,7 @@ VAT_GENERATORS maps a country code (lowercase) to its generator function.
 The installer looks up this registry when ``fiscal.vat_format`` is set to
 the special value ``"__generator__"`` in a country pack.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

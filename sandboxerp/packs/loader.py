@@ -5,7 +5,7 @@ Discovers and loads YAML-based pack definitions from the filesystem.
 Packs live under ``~/.sandboxerp/packs/`` or the built-in ``packs/``
 directory shipped with the package.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations
