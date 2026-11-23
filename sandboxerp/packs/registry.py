@@ -59,6 +59,7 @@ _REGISTRY: list[PackMeta] = [
     PackMeta("country_fr", PackType.COUNTRY, "France (SIRET, TVA, EUR, fr_FR)", countries=("fr",)),
     PackMeta("country_ar", PackType.COUNTRY, "Argentina (CUIT, IVA, ARS)", countries=("ar",)),
     PackMeta("country_co", PackType.COUNTRY, "Colombia (NIT, IVA, COP)", countries=("co",)),
+    PackMeta("country_do", PackType.COUNTRY, "Dominican Republic (RNC, ITBIS, DOP)", countries=("do",)),
     PackMeta("country_pe", PackType.COUNTRY, "Peru (RUC, IGV, PEN)", countries=("pe",)),
     # Industry packs
     PackMeta("retail", PackType.INDUSTRY, "Retail (POS, inventory, pricing)"),
