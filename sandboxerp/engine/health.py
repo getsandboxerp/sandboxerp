@@ -91,8 +91,24 @@ def _label(key: str) -> str:
     return f"  [dim]{key:<16}[/dim]"
 
 
+def _admin_language(client: OdooClient, metrics: dict) -> str:
+    """Return the language the Odoo database is actually using.
+
+    Reads the admin user's ``lang`` (the installer writes it to user 2).
+    Falls back to the country pack's ``meta.locale`` if it cannot be read.
+
+    :param client: Authenticated Odoo client.
+    :param metrics: Installer metrics dict.
+    :return: Language code, or an empty string if unknown.
+    """
+    users = client.search_read("res.users", [["id", "=", 2]], ["lang"])
+    if users and users[0].get("lang"):
+        return users[0]["lang"]
+    return metrics.get("country_pack", {}).get("meta", {}).get("locale", "")
+
+
 def _print_company(client: OdooClient, metrics: dict) -> None:
-    """Print company name, currency and locale.
+    """Print company name, currency and the configured Odoo language.
 
     :param client: Authenticated Odoo client.
     :param metrics: Installer metrics dict.
@@ -104,10 +120,10 @@ def _print_company(client: OdooClient, metrics: dict) -> None:
     if not company:
         return
     c = company[0]
-    locale = metrics.get("country_pack", {}).get("meta", {}).get("locale", "")
+    lang = _admin_language(client, metrics)
     console.print(
         f"{_label('company')}"
-        f"{c['name']} | {c['currency_id'][1]} | {locale}"
+        f"{c['name']} | {c['currency_id'][1]} | {lang}"
     )
 
 
