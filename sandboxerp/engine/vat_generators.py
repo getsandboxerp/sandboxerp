@@ -291,6 +291,37 @@ def _co_nit(rng: random.Random) -> str:
 
 
 # ─────────────────────────────────────────
+# Dominican Republic — RNC
+# ─────────────────────────────────────────
+
+_DO_RNC_WEIGHTS = (7, 9, 8, 6, 5, 4, 3, 2)
+
+
+def _do_rnc(rng: random.Random) -> str:
+    """Generate a valid Dominican Republic RNC (without country prefix).
+
+    Format: 9 digits, no separators (e.g. ``101850043``). The first digit is
+    ``1`` (legal entity), the next seven are random and the last one is the
+    DGII check digit.
+
+    The check digit is a weighted mod-11 over the first eight digits::
+
+        weights = (7, 9, 8, 6, 5, 4, 3, 2)
+        digit = (10 - (sum(weight * digit) mod 11)) mod 9 + 1
+
+    Individuals in the Dominican Republic use their 11-digit cedula as tax ID.
+    The installer calls one generator for every partner, so all generated
+    partners receive an RNC.
+
+    :param rng: Seeded :class:`random.Random` instance.
+    :return: RNC string (9 digits, no separators).
+    """
+    body = "1" + "".join(str(rng.randint(0, 9)) for _ in range(7))
+    total = sum(w * int(d) for w, d in zip(_DO_RNC_WEIGHTS, body))
+    return body + str((10 - total % 11) % 9 + 1)
+
+
+# ─────────────────────────────────────────
 # Registry
 # ─────────────────────────────────────────
 
@@ -300,6 +331,7 @@ VAT_GENERATORS: dict[str, callable] = {
     "es": _es_nif,
     "fr": _fr_vat,  # TVA intracommunautaire: 2-digit key + 9-digit SIREN
     "co": _co_nit,  # NIT: 9 digits + hyphen + verification digit (DIAN mod-11)
+    "do": _do_rnc,  # RNC: 9 digits, DGII mod-11 check digit
 }
 
 
