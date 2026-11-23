@@ -23,6 +23,8 @@ Docker environment is up and Odoo is responding on its HTTP port.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import random
 import time
 from datetime import date
@@ -473,6 +475,7 @@ def _generate_partners(
         person_taxpayer_field = ""
 
     partner_ids: list[int] = []
+    used_vats: set[str] = set()
 
     with Progress(
         TextColumn("  {task.description}"),
@@ -483,12 +486,12 @@ def _generate_partners(
     ) as progress:
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
-            generated_vat = generate_vat(country_code_lower, rng=fake.random)
-            if generated_vat is not None:
-                vat = vat_prefix + generated_vat
-            else:
-                raw_vat = getattr(fake, person_rut_method, fake.ssn)()
-                vat = vat_prefix + raw_vat.replace(".", "")
+            vat = _unique_vat(
+                lambda: _build_vat(
+                    country_code_lower, fake, vat_prefix, person_rut_method
+                ),
+                used_vats,
+            )
             record = {
                 "name": fake.name(),
                 "customer_rank": 1,
@@ -513,12 +516,12 @@ def _generate_partners(
 
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
-            generated_vat = generate_vat(country_code_lower, rng=fake.random)
-            if generated_vat is not None:
-                vat = vat_prefix + generated_vat
-            else:
-                raw_vat = getattr(fake, company_rut_method, fake.ssn)()
-                vat = vat_prefix + raw_vat.replace(".", "")
+            vat = _unique_vat(
+                lambda: _build_vat(
+                    country_code_lower, fake, vat_prefix, company_rut_method
+                ),
+                used_vats,
+            )
             record = {
                 "name": fake.company(),
                 "customer_rank": 0,
@@ -545,6 +548,52 @@ def _generate_partners(
         f"  [green]✓[/green] {customer_count} customers + {supplier_count} suppliers"
     )
     return partner_ids, customer_count, supplier_count
+
+
+def _build_vat(
+    country_code: str, fake: Faker, vat_prefix: str, faker_method: str
+) -> str:
+    """Build one tax ID for a partner.
+
+    Uses the country's VAT generator when there is one, otherwise the Faker
+    method declared in the country pack.
+
+    :param country_code: Lowercase ISO country code of the pack.
+    :param fake: Seeded Faker instance.
+    :param vat_prefix: Prefix required by the localization (may be empty).
+    :param faker_method: Faker method used when no generator exists.
+    :return: Tax ID string, prefix included.
+    """
+    generated = generate_vat(country_code, rng=fake.random)
+    if generated is not None:
+        return vat_prefix + generated
+    raw = getattr(fake, faker_method, fake.ssn)()
+    return vat_prefix + raw.replace(".", "")
+
+
+def _unique_vat(
+    make_vat: Callable[[], str], used: set[str], max_tries: int = 100
+) -> str:
+    """Return a tax ID that has not been used yet in this run.
+
+    Draws from ``make_vat`` again on collision, up to ``max_tries`` extra
+    times, so a finite number space cannot produce two partners with the
+    same tax ID. With no collision the generator is called exactly once, so
+    the data for a given seed does not change. If the space is exhausted the
+    last value is kept instead of looping forever.
+
+    :param make_vat: Zero-argument callable that returns a candidate tax ID.
+    :param used: Tax IDs already assigned in this run; updated in place.
+    :param max_tries: Maximum number of extra draws on collision.
+    :return: The tax ID to use.
+    """
+    vat = make_vat()
+    for _ in range(max_tries):
+        if vat not in used:
+            break
+        vat = make_vat()
+    used.add(vat)
+    return vat
 
 
 # ─────────────────────────────────────────
