@@ -217,6 +217,65 @@ class TestGeneratePartners:
         )
         assert all(isinstance(i, int) for i in ids)
 
+    def test_vat_is_unique_when_generator_collides(self, mock_client):
+        """A generator that repeats values must not yield duplicate VATs."""
+        from faker import Faker
+        fake = Faker("es_CL")
+        fake.seed_instance(42)
+        mock_client.search.return_value = [1]
+        mock_client.create.return_value = 99
+        values = iter(
+            [v for n in range(1, 40) for v in (f"V{n}", f"V{n}")]
+        )
+
+        with patch(
+            "sandboxerp.engine.installer.generate_vat",
+            side_effect=lambda *a, **k: next(values),
+        ):
+            _generate_partners(
+                mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
+            )
+
+        vats = [
+            c.args[1]["vat"]
+            for c in mock_client.create.call_args_list
+            if c.args[0] == "res.partner"
+        ]
+        assert len(vats) == 8
+        assert len(set(vats)) == 8
+
+    def test_vat_retries_are_bounded(self, mock_client):
+        """A generator stuck on one value must not hang the installer."""
+        from faker import Faker
+        fake = Faker("es_CL")
+        fake.seed_instance(42)
+        mock_client.search.return_value = [1]
+        mock_client.create.return_value = 99
+
+        with patch(
+            "sandboxerp.engine.installer.generate_vat", return_value="SAME"
+        ) as gen:
+            ids, _, _ = _generate_partners(
+                mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
+            )
+
+        assert len(ids) == 8
+        assert gen.call_count <= 8 * 101
+
+    def test_unique_vat_draws_once_without_collision(self):
+        """With no collision the generator is called exactly once."""
+        from sandboxerp.engine.installer import _unique_vat
+        calls = []
+
+        def make():
+            calls.append(1)
+            return "A"
+
+        used: set[str] = set()
+        assert _unique_vat(make, used) == "A"
+        assert len(calls) == 1
+        assert used == {"A"}
+
 
 # ─────────────────────────────────────────
 # _generate_products
