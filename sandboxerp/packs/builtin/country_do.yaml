@@ -24,7 +24,7 @@ localization:
       - l10n_do            # base: chart of accounts, ITBIS taxes, fiscal positions
   chart_of_accounts: l10n_do
   currency: DOP
-  language: es_DO       # the installer currently applies meta.locale (es_MX) instead
+  language: es_DO       # Odoo language (meta.locale es_MX is the Faker locale only)
   country_code: DO
   post_install:
     - set_currency: DOP

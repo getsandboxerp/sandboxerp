@@ -431,6 +431,55 @@ class TestConfigureLanguage:
             "res.users", [2], {"lang": "es_CL"}
         )
 
+    def test_prefers_localization_language_over_meta_locale(self, mock_client):
+        """localization.language wins over meta.locale (Faker locale)."""
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        mock_client.search.return_value = [70]
+        _configure_language(mock_client, pack)
+        first_domain = mock_client.search.call_args_list[0].args[1]
+        assert first_domain == [["code", "=", "es_DO"]]
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_DO"}
+        )
+
+    def test_falls_back_to_meta_locale_when_language_missing(self, mock_client):
+        """If localization.language is not in res.lang, meta.locale is used."""
+
+        def search_side_effect(model, domain, **kwargs):
+            code = domain[0][2]
+            return [] if code == "es_DO" else [70]
+
+        mock_client.search.side_effect = search_side_effect
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        _configure_language(mock_client, pack)
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_MX"}
+        )
+
+    def test_falls_back_to_es_ES_when_language_and_locale_missing(self, mock_client):
+        """If neither language nor locale exist, es_ES is the last resort."""
+
+        def search_side_effect(model, domain, **kwargs):
+            code = domain[0][2]
+            return [82] if code == "es_ES" else []
+
+        mock_client.search.side_effect = search_side_effect
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        _configure_language(mock_client, pack)
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_ES"}
+        )
+
+
 
 # ─────────────────────────────────────────
 # _configure_admin_user

@@ -226,37 +226,42 @@ def _install_modules(
 
 
 def _configure_language(client: OdooClient, country_pack: dict) -> None:
-    """Load and activate the locale defined by the country pack.
+    """Load and activate the Odoo language defined by the country pack.
 
     Uses the ``base.language.install`` wizard to activate the language,
     which is the correct mechanism in Odoo 17. Languages exist in
     ``res.lang`` but are inactive by default; the wizard activates them
     and loads their translations.
 
-    Falls back to ``es_ES`` if the primary locale is not available.
+    The language is resolved in this order: ``localization.language``,
+    then ``meta.locale`` (the Faker locale), then ``es_ES``. The first
+    one that exists in ``res.lang`` wins.
     Assigns the active locale to the admin user so the interface renders
     in the correct language.
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
     """
-    locale = country_pack.get("meta", {}).get("locale", "es_CL")
+    loc = country_pack.get("localization", {})
+    meta = country_pack.get("meta", {})
+
+    candidates: list[str] = []
+    for code in (loc.get("language"), meta.get("locale", "es_CL"), "es_ES"):
+        if code and code not in candidates:
+            candidates.append(code)
 
     # Find the language record (including inactive ones).
-    lang_ids = client.search(
-        "res.lang",
-        [["code", "=", locale]],
-        context={"active_test": False},
-    )
-
-    if not lang_ids:
-        # Fallback to es_ES
-        locale = "es_ES"
+    locale = candidates[0]
+    lang_ids: list[int] = []
+    for code in candidates:
         lang_ids = client.search(
             "res.lang",
-            [["code", "=", locale]],
+            [["code", "=", code]],
             context={"active_test": False},
         )
+        if lang_ids:
+            locale = code
+            break
 
     if not lang_ids:
         console.print("  [dim]language=en_US (locale not available)[/dim]")
