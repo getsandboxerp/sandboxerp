@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sandboxerp"
-version = "0.2.7"
+version = "0.3.0"
 description = "Generate complete, coherent Odoo environments from a YAML spec."
 readme = "README.md"
 license = { text = "MIT" }
