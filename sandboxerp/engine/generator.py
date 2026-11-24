@@ -43,13 +43,16 @@ from sandboxerp.packs.registry import PackType, list_packs
 console = Console()
 
 # Supported values derived dynamically from the pack registry.
-# Adding a new country pack to registry.py automatically enables it here.
+# A pack is offered only when it is not marked ``planned`` (its YAML file
+# exists), so the CLI never advertises something that cannot be loaded.
 SUPPORTED_COUNTRIES = {
     c
-    for p in list_packs(PackType.COUNTRY)
+    for p in list_packs(PackType.COUNTRY, include_planned=False)
     for c in p.countries
 }
-SUPPORTED_INDUSTRIES = {"retail", "accounting", "manufacturing", "services"}
+SUPPORTED_INDUSTRIES = {
+    p.name for p in list_packs(PackType.INDUSTRY, include_planned=False)
+}
 SUPPORTED_PROFILES = {"small", "medium", "enterprise", "benchmark"}
 
 

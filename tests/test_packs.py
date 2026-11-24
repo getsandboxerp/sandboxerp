@@ -185,3 +185,68 @@ class TestLoader:
             assert isinstance(pack, dict)
         except FileNotFoundError:
             pass  # expected until retail.yaml is created
+
+
+# ---------------------------------------------------------------------------
+# registry <-> files on disk
+# ---------------------------------------------------------------------------
+
+class TestRegistryMatchesFiles:
+    """The catalogue must never advertise a pack that cannot be loaded."""
+
+    def test_available_packs_have_a_yaml(self):
+        """Every pack not marked planned must have its YAML file."""
+        from sandboxerp.packs.loader import BUILTIN_PACKS_DIR
+
+        missing = [
+            p.name
+            for p in list_packs(include_planned=False)
+            if not (BUILTIN_PACKS_DIR / f"{p.name}.yaml").exists()
+        ]
+        assert missing == [], (
+            f"registered without a YAML file: {missing}. "
+            "Add the file or mark the pack planned=True."
+        )
+
+    def test_planned_packs_have_no_yaml(self):
+        """A planned pack whose file now exists must be switched on."""
+        from sandboxerp.packs.loader import BUILTIN_PACKS_DIR
+
+        ready = [
+            p.name
+            for p in list_packs()
+            if p.planned and (BUILTIN_PACKS_DIR / f"{p.name}.yaml").exists()
+        ]
+        assert ready == [], (
+            f"YAML exists but still planned=True: {ready}. "
+            "Remove planned=True to enable them."
+        )
+
+    def test_include_planned_false_excludes_planned(self):
+        packs = list_packs(include_planned=False)
+        assert all(not p.planned for p in packs)
+        assert len(packs) < len(list_packs())
+
+    def test_cli_countries_exclude_planned(self):
+        from sandboxerp.engine.generator import SUPPORTED_COUNTRIES
+
+        planned = {c for p in list_packs() if p.planned for c in p.countries}
+        assert planned
+        assert SUPPORTED_COUNTRIES.isdisjoint(planned)
+        assert {"cl", "mx", "co", "do"} <= SUPPORTED_COUNTRIES
+
+    def test_cli_industries_match_available_packs(self):
+        from sandboxerp.engine.generator import SUPPORTED_INDUSTRIES
+
+        available = {
+            p.name for p in list_packs(PackType.INDUSTRY, include_planned=False)
+        }
+        assert SUPPORTED_INDUSTRIES == available
+        assert "retail" in SUPPORTED_INDUSTRIES
+
+    def test_every_supported_country_loads(self):
+        """Whatever the CLI accepts must load, the user-facing guarantee."""
+        from sandboxerp.engine.generator import SUPPORTED_COUNTRIES
+
+        for code in sorted(SUPPORTED_COUNTRIES):
+            assert isinstance(load_country_pack(code), dict), code
