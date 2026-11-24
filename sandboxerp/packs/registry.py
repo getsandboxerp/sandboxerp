@@ -36,6 +36,9 @@ class PackMeta:
     :param label: Human-readable display name.
     :param countries: Country codes this pack applies to. Empty = all.
     :param premium: Whether the pack requires a premium license.
+    :param planned: ``True`` while the pack is registered but its YAML file
+        does not exist yet. Planned packs are hidden from the CLI. Set it to
+        ``False`` in the same change that adds the file (a test enforces it).
     """
 
     name: str
@@ -43,12 +46,15 @@ class PackMeta:
     label: str
     countries: tuple[str, ...] = ()
     premium: bool = False
+    planned: bool = False
 
 
 # ─────────────────────────────────────────
 # Built-in pack catalogue
 # ─────────────────────────────────────────
 
+# ``planned=True``: in the catalogue but without a YAML file yet. These do not
+# appear in the CLI choices until the file exists.
 _REGISTRY: list[PackMeta] = [
     # Country packs
     PackMeta("country_cl", PackType.COUNTRY, "Chile (RUT, IVA, CLP)", countries=("cl",)),
@@ -57,19 +63,19 @@ _REGISTRY: list[PackMeta] = [
     PackMeta("country_pt", PackType.COUNTRY, "Portugal (NIF, IVA, EUR, pt_PT)", countries=("pt",)),
     PackMeta("country_es", PackType.COUNTRY, "Spain (NIF/CIF, IVA, EUR, es_ES)", countries=("es",)),
     PackMeta("country_fr", PackType.COUNTRY, "France (SIRET, TVA, EUR, fr_FR)", countries=("fr",)),
-    PackMeta("country_ar", PackType.COUNTRY, "Argentina (CUIT, IVA, ARS)", countries=("ar",)),
+    PackMeta("country_ar", PackType.COUNTRY, "Argentina (CUIT, IVA, ARS)", countries=("ar",), planned=True),
     PackMeta("country_co", PackType.COUNTRY, "Colombia (NIT, IVA, COP)", countries=("co",)),
     PackMeta("country_do", PackType.COUNTRY, "Dominican Republic (RNC, ITBIS, DOP)", countries=("do",)),
-    PackMeta("country_pe", PackType.COUNTRY, "Peru (RUC, IGV, PEN)", countries=("pe",)),
+    PackMeta("country_pe", PackType.COUNTRY, "Peru (RUC, IGV, PEN)", countries=("pe",), planned=True),
     # Industry packs
     PackMeta("retail", PackType.INDUSTRY, "Retail (POS, inventory, pricing)"),
-    PackMeta("accounting", PackType.INDUSTRY, "Accounting firm (invoices, reconciliation)"),
-    PackMeta("manufacturing", PackType.INDUSTRY, "Manufacturing (BOM, MO, WC)"),
-    PackMeta("services", PackType.INDUSTRY, "Professional services (timesheets, projects)"),
+    PackMeta("accounting", PackType.INDUSTRY, "Accounting firm (invoices, reconciliation)", planned=True),
+    PackMeta("manufacturing", PackType.INDUSTRY, "Manufacturing (BOM, MO, WC)", planned=True),
+    PackMeta("services", PackType.INDUSTRY, "Professional services (timesheets, projects)", planned=True),
     # Chaos packs (premium)
-    PackMeta("chaos_duplicates", PackType.CHAOS, "Duplicate records & partners", premium=True),
-    PackMeta("chaos_acl", PackType.CHAOS, "Broken ACL / security rules", premium=True),
-    PackMeta("chaos_crons", PackType.CHAOS, "Dead scheduled actions", premium=True),
+    PackMeta("chaos_duplicates", PackType.CHAOS, "Duplicate records & partners", premium=True, planned=True),
+    PackMeta("chaos_acl", PackType.CHAOS, "Broken ACL / security rules", premium=True, planned=True),
+    PackMeta("chaos_crons", PackType.CHAOS, "Dead scheduled actions", premium=True, planned=True),
 ]
 
 _INDEX: dict[str, PackMeta] = {p.name: p for p in _REGISTRY}
@@ -84,11 +90,14 @@ def list_packs(
     pack_type: Optional[PackType] = None,
     *,
     include_premium: bool = True,
+    include_planned: bool = True,
 ) -> list[PackMeta]:
     """Return all registered packs, optionally filtered.
 
     :param pack_type: When provided, only packs of this type are returned.
     :param include_premium: When ``False``, premium packs are excluded.
+    :param include_planned: When ``False``, planned packs (registered but
+        without a YAML file yet) are excluded.
     :return: List of matching :class:`PackMeta` entries.
     """
     result = _REGISTRY
@@ -96,6 +105,8 @@ def list_packs(
         result = [p for p in result if p.type == pack_type]
     if not include_premium:
         result = [p for p in result if not p.premium]
+    if not include_planned:
+        result = [p for p in result if not p.planned]
     return result
 
 
