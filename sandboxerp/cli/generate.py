@@ -30,7 +30,7 @@ Examples::
     sandbox generate --country es --industry retail --profile small \\
         --compliance "tax_report,period=3T,year=2025"
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 import os

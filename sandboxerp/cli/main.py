@@ -25,7 +25,7 @@ The ``sandbox`` command is installed via the ``[project.scripts]`` entry in
 Attributes:
     app (typer.Typer): Root Typer application shared across all subcommands.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from importlib.metadata import version, PackageNotFoundError

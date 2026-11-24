@@ -5,7 +5,7 @@ Thin orchestration layer between the Compose template renderer and the
 ``docker compose`` CLI. Writes compose files to disk and delegates
 lifecycle commands (up, stop, down) to the system binary.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

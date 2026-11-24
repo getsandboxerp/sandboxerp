@@ -31,7 +31,7 @@ Usage::
     window = ObservationWindow.last_n_months(12)
     dated_chain = assign_dates(chain, window=window, rng=random.Random(42))
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations

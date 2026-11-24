@@ -4,7 +4,7 @@ Pack registry for SandboxERP.
 Maintains an in-memory catalogue of available packs (country, industry,
 chaos) and exposes helpers to list and resolve them by name.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations
@@ -56,8 +56,10 @@ _REGISTRY: list[PackMeta] = [
     PackMeta("country_nl", PackType.COUNTRY, "Netherlands (BTW, EUR, nl_NL)", countries=("nl",)),
     PackMeta("country_pt", PackType.COUNTRY, "Portugal (NIF, IVA, EUR, pt_PT)", countries=("pt",)),
     PackMeta("country_es", PackType.COUNTRY, "Spain (NIF/CIF, IVA, EUR, es_ES)", countries=("es",)),
+    PackMeta("country_fr", PackType.COUNTRY, "France (SIRET, TVA, EUR, fr_FR)", countries=("fr",)),
     PackMeta("country_ar", PackType.COUNTRY, "Argentina (CUIT, IVA, ARS)", countries=("ar",)),
     PackMeta("country_co", PackType.COUNTRY, "Colombia (NIT, IVA, COP)", countries=("co",)),
+    PackMeta("country_do", PackType.COUNTRY, "Dominican Republic (RNC, ITBIS, DOP)", countries=("do",)),
     PackMeta("country_pe", PackType.COUNTRY, "Peru (RUC, IGV, PEN)", countries=("pe",)),
     # Industry packs
     PackMeta("retail", PackType.INDUSTRY, "Retail (POS, inventory, pricing)"),

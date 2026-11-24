@@ -217,6 +217,65 @@ class TestGeneratePartners:
         )
         assert all(isinstance(i, int) for i in ids)
 
+    def test_vat_is_unique_when_generator_collides(self, mock_client):
+        """A generator that repeats values must not yield duplicate VATs."""
+        from faker import Faker
+        fake = Faker("es_CL")
+        fake.seed_instance(42)
+        mock_client.search.return_value = [1]
+        mock_client.create.return_value = 99
+        values = iter(
+            [v for n in range(1, 40) for v in (f"V{n}", f"V{n}")]
+        )
+
+        with patch(
+            "sandboxerp.engine.installer.generate_vat",
+            side_effect=lambda *a, **k: next(values),
+        ):
+            _generate_partners(
+                mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
+            )
+
+        vats = [
+            c.args[1]["vat"]
+            for c in mock_client.create.call_args_list
+            if c.args[0] == "res.partner"
+        ]
+        assert len(vats) == 8
+        assert len(set(vats)) == 8
+
+    def test_vat_retries_are_bounded(self, mock_client):
+        """A generator stuck on one value must not hang the installer."""
+        from faker import Faker
+        fake = Faker("es_CL")
+        fake.seed_instance(42)
+        mock_client.search.return_value = [1]
+        mock_client.create.return_value = 99
+
+        with patch(
+            "sandboxerp.engine.installer.generate_vat", return_value="SAME"
+        ) as gen:
+            ids, _, _ = _generate_partners(
+                mock_client, _COUNTRY_PACK, _INDUSTRY_PACK, "small", fake
+            )
+
+        assert len(ids) == 8
+        assert gen.call_count <= 8 * 101
+
+    def test_unique_vat_draws_once_without_collision(self):
+        """With no collision the generator is called exactly once."""
+        from sandboxerp.engine.installer import _unique_vat
+        calls = []
+
+        def make():
+            calls.append(1)
+            return "A"
+
+        used: set[str] = set()
+        assert _unique_vat(make, used) == "A"
+        assert len(calls) == 1
+        assert used == {"A"}
+
 
 # ─────────────────────────────────────────
 # _generate_products
@@ -430,6 +489,55 @@ class TestConfigureLanguage:
         mock_client.write.assert_called_once_with(
             "res.users", [2], {"lang": "es_CL"}
         )
+
+    def test_prefers_localization_language_over_meta_locale(self, mock_client):
+        """localization.language wins over meta.locale (Faker locale)."""
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        mock_client.search.return_value = [70]
+        _configure_language(mock_client, pack)
+        first_domain = mock_client.search.call_args_list[0].args[1]
+        assert first_domain == [["code", "=", "es_DO"]]
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_DO"}
+        )
+
+    def test_falls_back_to_meta_locale_when_language_missing(self, mock_client):
+        """If localization.language is not in res.lang, meta.locale is used."""
+
+        def search_side_effect(model, domain, **kwargs):
+            code = domain[0][2]
+            return [] if code == "es_DO" else [70]
+
+        mock_client.search.side_effect = search_side_effect
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        _configure_language(mock_client, pack)
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_MX"}
+        )
+
+    def test_falls_back_to_es_ES_when_language_and_locale_missing(self, mock_client):
+        """If neither language nor locale exist, es_ES is the last resort."""
+
+        def search_side_effect(model, domain, **kwargs):
+            code = domain[0][2]
+            return [82] if code == "es_ES" else []
+
+        mock_client.search.side_effect = search_side_effect
+        pack = {
+            "meta": {"code": "do", "locale": "es_MX"},
+            "localization": {"language": "es_DO"},
+        }
+        _configure_language(mock_client, pack)
+        mock_client.write.assert_called_once_with(
+            "res.users", [2], {"lang": "es_ES"}
+        )
+
 
 
 # ─────────────────────────────────────────

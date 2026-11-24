@@ -18,10 +18,12 @@ Orchestrates the post-Docker phase of environment generation:
 This module is called by :mod:`sandboxerp.engine.generator` once the
 Docker environment is up and Odoo is responding on its HTTP port.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import random
 import time
@@ -226,37 +228,42 @@ def _install_modules(
 
 
 def _configure_language(client: OdooClient, country_pack: dict) -> None:
-    """Load and activate the locale defined by the country pack.
+    """Load and activate the Odoo language defined by the country pack.
 
     Uses the ``base.language.install`` wizard to activate the language,
     which is the correct mechanism in Odoo 17. Languages exist in
     ``res.lang`` but are inactive by default; the wizard activates them
     and loads their translations.
 
-    Falls back to ``es_ES`` if the primary locale is not available.
+    The language is resolved in this order: ``localization.language``,
+    then ``meta.locale`` (the Faker locale), then ``es_ES``. The first
+    one that exists in ``res.lang`` wins.
     Assigns the active locale to the admin user so the interface renders
     in the correct language.
 
     :param client: Authenticated Odoo client.
     :param country_pack: Loaded country pack dict.
     """
-    locale = country_pack.get("meta", {}).get("locale", "es_CL")
+    loc = country_pack.get("localization", {})
+    meta = country_pack.get("meta", {})
+
+    candidates: list[str] = []
+    for code in (loc.get("language"), meta.get("locale", "es_CL"), "es_ES"):
+        if code and code not in candidates:
+            candidates.append(code)
 
     # Find the language record (including inactive ones).
-    lang_ids = client.search(
-        "res.lang",
-        [["code", "=", locale]],
-        context={"active_test": False},
-    )
-
-    if not lang_ids:
-        # Fallback to es_ES
-        locale = "es_ES"
+    locale = candidates[0]
+    lang_ids: list[int] = []
+    for code in candidates:
         lang_ids = client.search(
             "res.lang",
-            [["code", "=", locale]],
+            [["code", "=", code]],
             context={"active_test": False},
         )
+        if lang_ids:
+            locale = code
+            break
 
     if not lang_ids:
         console.print("  [dim]language=en_US (locale not available)[/dim]")
@@ -468,6 +475,7 @@ def _generate_partners(
         person_taxpayer_field = ""
 
     partner_ids: list[int] = []
+    used_vats: set[str] = set()
 
     with Progress(
         TextColumn("  {task.description}"),
@@ -478,12 +486,12 @@ def _generate_partners(
     ) as progress:
         task = progress.add_task("Customers", total=customer_count)
         for _ in range(customer_count):
-            generated_vat = generate_vat(country_code_lower, rng=fake.random)
-            if generated_vat is not None:
-                vat = vat_prefix + generated_vat
-            else:
-                raw_vat = getattr(fake, person_rut_method, fake.ssn)()
-                vat = vat_prefix + raw_vat.replace(".", "")
+            vat = _unique_vat(
+                lambda: _build_vat(
+                    country_code_lower, fake, vat_prefix, person_rut_method
+                ),
+                used_vats,
+            )
             record = {
                 "name": fake.name(),
                 "customer_rank": 1,
@@ -508,12 +516,12 @@ def _generate_partners(
 
         task = progress.add_task("Suppliers", total=supplier_count)
         for _ in range(supplier_count):
-            generated_vat = generate_vat(country_code_lower, rng=fake.random)
-            if generated_vat is not None:
-                vat = vat_prefix + generated_vat
-            else:
-                raw_vat = getattr(fake, company_rut_method, fake.ssn)()
-                vat = vat_prefix + raw_vat.replace(".", "")
+            vat = _unique_vat(
+                lambda: _build_vat(
+                    country_code_lower, fake, vat_prefix, company_rut_method
+                ),
+                used_vats,
+            )
             record = {
                 "name": fake.company(),
                 "customer_rank": 0,
@@ -540,6 +548,52 @@ def _generate_partners(
         f"  [green]✓[/green] {customer_count} customers + {supplier_count} suppliers"
     )
     return partner_ids, customer_count, supplier_count
+
+
+def _build_vat(
+    country_code: str, fake: Faker, vat_prefix: str, faker_method: str
+) -> str:
+    """Build one tax ID for a partner.
+
+    Uses the country's VAT generator when there is one, otherwise the Faker
+    method declared in the country pack.
+
+    :param country_code: Lowercase ISO country code of the pack.
+    :param fake: Seeded Faker instance.
+    :param vat_prefix: Prefix required by the localization (may be empty).
+    :param faker_method: Faker method used when no generator exists.
+    :return: Tax ID string, prefix included.
+    """
+    generated = generate_vat(country_code, rng=fake.random)
+    if generated is not None:
+        return vat_prefix + generated
+    raw = getattr(fake, faker_method, fake.ssn)()
+    return vat_prefix + raw.replace(".", "")
+
+
+def _unique_vat(
+    make_vat: Callable[[], str], used: set[str], max_tries: int = 100
+) -> str:
+    """Return a tax ID that has not been used yet in this run.
+
+    Draws from ``make_vat`` again on collision, up to ``max_tries`` extra
+    times, so a finite number space cannot produce two partners with the
+    same tax ID. With no collision the generator is called exactly once, so
+    the data for a given seed does not change. If the space is exhausted the
+    last value is kept instead of looping forever.
+
+    :param make_vat: Zero-argument callable that returns a candidate tax ID.
+    :param used: Tax IDs already assigned in this run; updated in place.
+    :param max_tries: Maximum number of extra draws on collision.
+    :return: The tax ID to use.
+    """
+    vat = make_vat()
+    for _ in range(max_tries):
+        if vat not in used:
+            break
+        vat = make_vat()
+    used.add(vat)
+    return vat
 
 
 # ─────────────────────────────────────────

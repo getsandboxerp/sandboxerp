@@ -7,7 +7,7 @@ Lead → Sales Order → Delivery → Invoice → Payment.
 This module is the MVP implementation of the Behaviour Engine layer.
 Time coherence (Layer 6) and Persona Engine (Layer 7) extend this base.
 
-:author: Hector Colina / Team360 <https://team360.cl>
+:author: Hector Colina / Team360 <hector.colina@team360.cl> | https://team360.cl
 """
 
 from __future__ import annotations
