@@ -80,7 +80,7 @@ def _previous_quarter(today: Optional[date] = None) -> tuple[str, int]:
     today = today or date.today()
     current_quarter = (today.month - 1) // 3 + 1
     if current_quarter == 1:
-        return f"4T", today.year - 1
+        return "4T", today.year - 1
     return f"{current_quarter - 1}T", today.year
 
 
