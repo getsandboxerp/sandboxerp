@@ -21,7 +21,7 @@ SandboxERP hace todo eso con un solo comando.
 - **Un comando** para generar un entorno Odoo 17 completamente poblado
 - **Country packs** — datos localizados: RUT/RFC/BTW/NIF, moneda, idioma, regiones, bancos
 - **Industry packs** — categorías de productos, módulos y volúmenes de transacción según la industria
-- **Profiles** — escala desde `small` (50 clientes) hasta `enterprise` (2.000+)
+- **Profiles** — escala desde `small` (50 clientes) hasta `benchmark` (10.000)
 - **Reproducible** — flag `--seed` para generación determinista de datos
 - **Comportamiento causal** — las órdenes de venta fluyen por entrega, factura y pago
 - **Coherencia temporal** — fechas, estacionalidad y mora que tienen sentido
@@ -167,6 +167,10 @@ sandbox generate --help
 | `mx` | México | MXN | es_MX | RFC |
 | `nl` | Países Bajos | EUR | nl_NL | BTW-nummer |
 | `pt` | Portugal | EUR | pt_PT | NIF |
+| `es` | España | EUR | es_ES | NIF |
+| `fr` | Francia | EUR | fr_FR | SIRET |
+| `co` | Colombia | COP | es_CO | NIT |
+| `do` | República Dominicana | DOP | es_DO | RNC |
 
 ### Industrias
 
